@@ -1,4 +1,5 @@
-function randomTpCommand(args) {
+
+export function randomTpCommand(args: fe.CommandArgs) {
     if (args.isEmpty()) {
         args.confirm('/jscript randomtp range [x z]: Teleport to some random location');
         return;
