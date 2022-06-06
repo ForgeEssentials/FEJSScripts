@@ -3,3 +3,5 @@ Additions should be in the form [groupname]/[jsname].[ts/js]
 
 For ease of use, please include a js version and optionaly a ts version as well.
 This is because Forge Essentials requires ts scripts to be transpiled to js before they can be used.
+
+See the FE wiki how to get started with scripting here https://github.com/ForgeEssentials/ForgeEssentials/wiki/JS-Scripting
