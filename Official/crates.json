@@ -1,0 +1,123 @@
+{
+    "broadcastItemGifts": false,
+    "crates": {
+      "basic": {
+        "items": {
+          "0": {
+            "name": "minecraft:iron_nugget",
+            "tag": {},
+            "action": 0.0,
+            "amount": 9.0,
+            "chance": 25.0
+          },
+          "1": {
+            "name": "minecraft:iron_ingot",
+            "action": 1.0,
+            "kit": "starter",
+            "chance": 25.0
+          },
+          "2": {
+            "name": "minecraft:iron_block",
+            "action": 2.0,
+            "amount": 1000.0,
+            "chance": 25.0
+          },
+          "3": {
+            "name": "minecraft:diamond",
+            "action": 3.0,
+            "crate": "iron",
+            "chance": 25.0
+          },
+          "4": {
+            "name": "minecraft:planks",
+            "action": 3.0,
+            "crate": "diamond",
+            "chance": 25.0
+          }
+        }
+      },
+      "iron": {
+        "items": {
+          "0": {
+            "name": "minecraft:iron_nugget",
+            "tag": {},
+            "action": 0.0,
+            "amount": 9.0,
+            "chance": 75.0
+          },
+          "1": {
+            "name": "minecraft:iron_ingot",
+            "action": 1.0,
+            "kit": "starter",
+            "chance": 25.0
+          },
+          "2": {
+            "name": "minecraft:iron_block",
+            "action": 2.0,
+            "amount": 1000.0,
+            "chance": 25.0
+          },
+          "3": {
+            "name": "minecraft:diamond",
+            "action": 3.0,
+            "crate": "iron",
+            "chance": 5.0
+          },
+          "4": {
+            "name": "minecraft:planks",
+            "action": 3.0,
+            "crate": "diamond",
+            "chance": 55.0
+          }
+        }
+      },
+      "diamond": {
+        "items": {
+          "0": {
+            "name": "minecraft:iron_nugget",
+            "tag": {},
+            "action": 0.0,
+            "amount": 9.0,
+            "chance": 25.0
+          },
+          "1": {
+            "name": "minecraft:iron_ingot",
+            "action": 1.0,
+            "kit": "starter",
+            "chance": 55.0
+          },
+          "2": {
+            "name": "minecraft:iron_block",
+            "action": 2.0,
+            "amount": 1000.0,
+            "chance": 45.0
+          },
+          "3": {
+            "name": "minecraft:diamond",
+            "action": 3.0,
+            "crate": "iron",
+            "chance": 15.0
+          },
+          "4": {
+            "name": "minecraft:planks",
+            "action": 3.0,
+            "crate": "diamond",
+            "chance": 15.0
+          }
+        }
+      }
+    },
+    "version": 1.0,
+    "definitions": {
+      "0": {
+        "position": {
+          "x": -190.0,
+          "y": 66.0,
+          "z": 255.0,
+          "dim": 0.0
+        },
+        "crate": "basic"
+      }
+    },
+    "crateKey": "minecraft:tripwire_hook"
+  }
