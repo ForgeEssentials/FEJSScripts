@@ -170,21 +170,29 @@ function getActionLore(action: Actions) : string {
             return null;
     }
 }
-function onSigninteract(sender: mc.ICommandSender, data: any) {
-    
-    if (sender.getPlayer() == null) {
+
+Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.player.PlayerInteractEvent) {      
+    if (event.getPlayer() == null) {
         return;
     }
 
-    var handItem = sender.getPlayer().getInventory().getCurrentItem();
+    if (event.toString().search("RightClickBlock") == -1) {
+        return;
+    }
+    
+    var pos = event.getPos();
+    var dim = event.getWorld().getDimension();
+    var sender = event.getPlayer().asCommandSender();
+    var handItem = event.getPlayer().getInventory().getCurrentItem();
     
     for (var index in config.definitions) {
         
         let definition = config.definitions[index];
-        if (data.x == definition.position.x
-            && data.y == definition.position.y 
-            && data.z == definition.position.z
-            && data.dim == definition.position.dim) {
+        if (pos.getX() == definition.position.x
+            && pos.getY() == definition.position.y 
+            && pos.getZ() == definition.position.z
+            && dim == definition.position.dim) {
+                event.setCanceled(true);
                 let crate = config.crates[definition.crate];
                 let cdata = JSON.stringify(crate);
                 if (handItem.getItem().getName() != config.crateKey) 
@@ -204,7 +212,7 @@ function onSigninteract(sender: mc.ICommandSender, data: any) {
                 openMenu(sender, definition.crate);
         }
     }
-}
+});
 
 function openMenu(sender: mc.ICommandSender, crate: string) {
     if (sender && sender.getPlayer() != null) {
