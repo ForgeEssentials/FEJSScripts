@@ -1,7 +1,6 @@
 //A very simple barebones crate script as an example of some of the more complex things you can do on 1.12
 //This relys on inprogress scripting inprovements and will currently only work on builds from the `1.12.2/scripting-improvements` branch.
 
-// note: add `_getNbt(): string;` and `_setNbt(nbt: string): void;` to mc.Item.ItemStack in mc.d.ts in order to transpile this script since these methods are not exposed to typescript
 enum Actions {
     giveItem, //Gives an amount of items
     giveKit, //Gives a specified kit
@@ -204,7 +203,7 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                 
                 //Note: This method is not exposed to typescript and must be added manually to mc.d.ts to transpile!
                 //Server.chatConfirm(handItem._getNbt());
-                if (JSON.parse(handItem._getNbt())["S:crate"] != definition.crate) {
+                if (getNbt(handItem)["S:crate"] != definition.crate) {
                     sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
                     return;
                 }                
@@ -221,7 +220,7 @@ function openMenu(sender: mc.ICommandSender, crate: string) {
         for (var i in config.crates[crate].items) {
             var itemDef = config.crates[crate].items[i];
             var item = new mc.item.ItemStack(Item.get(itemDef.name), 1);
-            item._setNbt(`{"i:itemdefindex":${i},"c:display":{"S:Lore":["${getActionLore(itemDef.action)}"]}}`)
+            setNbt(item, {"i:itemdefindex":i,"c:display":{"S:Lore":[getActionLore(itemDef.action)]}});
 
             if (+itemDef.action == Actions.giveItem) {
                 item.setStackSize(itemDef.amount);
@@ -253,8 +252,8 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
     var sender = player.asCommandSender();
     //sender.chat("a=" + clickSlot + ", b=" + clickFlag + ", c=" + clickType + ", d=" + inventory.getSize());        
     var crateKey = inventory.getName();
-    if (clickType == "PICKUP" && crateKey!= "container.inventory" && itemstack != null) {               
-        var itemDef = config.crates[crateKey].items[JSON.parse(itemstack._getNbt())["i:itemdefindex"].toString()];        
+    if (clickType == "PICKUP" && crateKey!= "container.inventory" && itemstack != mc.item.ItemStack.EMPTY) {               
+        var itemDef = config.crates[crateKey].items[getNbt(itemstack)["i:itemdefindex"].toString()];        
         var headerMsg = `A${"aeiou".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Chest gave`;
         //TODO: Perhaps replace chatConfirms below to sender...  (Is it important to send a global message everytime a player gets a crate reward?)
         if (+itemDef.action == Actions.giveItem) {

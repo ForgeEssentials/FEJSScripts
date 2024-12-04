@@ -181,7 +181,7 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
                 sender.chatError("You need a key in your hand to open this!");
                 return;
             }
-            if (JSON.parse(handItem._getNbt())["S:crate"] != definition.crate) {
+            if (getNbt(handItem)["S:crate"] != definition.crate) {
                 sender.chatError("You need a ".concat(FirstLetterToUpper(definition.crate), " Key to open this crate!"));
                 return;
             }
@@ -195,7 +195,7 @@ function openMenu(sender, crate) {
         for (var i in config.crates[crate].items) {
             var itemDef = config.crates[crate].items[i];
             var item = new mc.item.ItemStack(Item.get(itemDef.name), 1);
-            item._setNbt("{\"i:itemdefindex\":".concat(i, ",\"c:display\":{\"S:Lore\":[\"").concat(getActionLore(itemDef.action), "\"]}}"));
+            setNbt(item, { "i:itemdefindex": i, "c:display": { "S:Lore": [getActionLore(itemDef.action)] } });
             if (+itemDef.action == Actions.giveItem) {
                 item.setStackSize(itemDef.amount);
             }
@@ -219,8 +219,8 @@ var hiddenChatSender = Server.getServer().doAs(null, true);
 function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstack) {
     var sender = player.asCommandSender();
     var crateKey = inventory.getName();
-    if (clickType == "PICKUP" && crateKey != "container.inventory" && itemstack != null) {
-        var itemDef = config.crates[crateKey].items[JSON.parse(itemstack._getNbt())["i:itemdefindex"].toString()];
+    if (clickType == "PICKUP" && crateKey != "container.inventory" && itemstack != mc.item.ItemStack.EMPTY) {
+        var itemDef = config.crates[crateKey].items[getNbt(itemstack)["i:itemdefindex"].toString()];
         var headerMsg = "A".concat("aeiou".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Chest gave");
         if (+itemDef.action == Actions.giveItem) {
             Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString());
