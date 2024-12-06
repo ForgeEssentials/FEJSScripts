@@ -53,7 +53,8 @@ if (typeof config !== 'undefined') {
                       crate: "diamond",
                       chance: 25
                     }
-                ]
+                ],
+                pickNumber: 3
             },
             iron: {
                 items: [
@@ -90,7 +91,8 @@ if (typeof config !== 'undefined') {
                       crate: "diamond",
                       chance: 45
                     }
-                ]
+                ],
+                pickNumber: 2
             },
             diamond: {
                 items: [
@@ -127,7 +129,8 @@ if (typeof config !== 'undefined') {
                       crate: "diamond",
                       chance: 15
                     }
-                ]
+                ],
+                pickNumber: 1
             }
         },
         definitions: [
@@ -142,10 +145,14 @@ if (typeof config !== 'undefined') {
             }
         ],
         crateKey: "minecraft:tripwire_hook",
-        broadcastItemGifts: true,
+        crateItem: "minecraft:chest",
+        broadcastItemGifts: false,
         version: configVersion
     };
 }
+
+
+let crateItem = Item.get(config.crateItem);
 
 function main() {
     if (config.version > configVersion) {
@@ -170,12 +177,20 @@ function getActionLore(action: Actions) : string {
     }
 }
 
+Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
+
 Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.player.PlayerInteractEvent) {      
     if (event.getPlayer() == null) {
         return;
     }
 
-    if (event.toString().search("RightClickBlock") == -1) {
+    var right = false;
+    var eventString = event.toString();
+    if (eventString.search("RightClickBlock") != -1) {
+        right = true;
+    } else if (eventString.search("LeftClickBlock") != -1) {
+        right = false;
+    } else {
         return;
     }
     
@@ -188,10 +203,11 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
         
         let definition = config.definitions[index];
         if (pos.getX() == definition.position.x
-            && pos.getY() == definition.position.y 
+            && pos.getY() == definition.position.y
             && pos.getZ() == definition.position.z
-            && dim == definition.position.dim) {
+            && dim == definition.position.dim && right) {
                 event.setCanceled(true);
+
                 let crate = config.crates[definition.crate];
                 let cdata = JSON.stringify(crate);
                 if (handItem.getItem().getName() != config.crateKey) 
@@ -219,17 +235,15 @@ function openMenu(sender: mc.ICommandSender, crate: string) {
         let items = []
         for (var i in config.crates[crate].items) {
             var itemDef = config.crates[crate].items[i];
-            var item = new mc.item.ItemStack(Item.get(itemDef.name), 1);
+            var item = new mc.item.ItemStack(crateItem, 1);
             setNbt(item, {"i:itemdefindex":i,"c:display":{"S:Lore":[getActionLore(itemDef.action)]}});
 
-            if (+itemDef.action == Actions.giveItem) {
-                item.setStackSize(itemDef.amount);
-            }
-            if (Math.random()*100 <= itemDef.chance) {
-            //item.setDisplayName()
-                items.push(item);
-            }
+            items.push(item);
         }
+        //Hijaks a sort function to randomize the items
+        items.sort(function(a, b) {
+            return Math.random() * 2 - 1;
+        })
 
         if (items.length == 0) {
             sender.chatConfirm("The chest seems to be empty!");
@@ -237,8 +251,8 @@ function openMenu(sender: mc.ICommandSender, crate: string) {
         }
 
         let inventory = FEServer.createCustomInventory(crate, true, items);
-            let menu = FEServer.getMenuChest(crate, FirstLetterToUpper(crate) + " Chest", inventory, "onTestMenu");
-                
+        let menu = FEServer.getMenuChest(crate, FirstLetterToUpper(crate) + " Chest", inventory, "onTestMenu");
+        
         sender.getPlayer().displayGUIChest(menu.getInventory());
     }
 }
@@ -248,75 +262,96 @@ function FirstLetterToUpper(s: string): string {
 }
 
 var hiddenChatSender = Server.getServer().doAs(null, true);
-function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: int, clickType: String, inventory: mc.item.Inventory, itemstack: mc.item.ItemStack) {
+function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: int, clickType: String, inventory: mc.item.Inventory, itemstack: mc.item.ItemStack) : mc.item.ItemStack {
     var sender = player.asCommandSender();
-    //sender.chat("a=" + clickSlot + ", b=" + clickFlag + ", c=" + clickType + ", d=" + inventory.getSize());        
-    var crateKey = inventory.getName();
-    if (clickType == "PICKUP" && crateKey!= "container.inventory" && itemstack != mc.item.ItemStack.EMPTY) {               
-        var itemDef = config.crates[crateKey].items[getNbt(itemstack)["i:itemdefindex"].toString()];        
-        var headerMsg = `A${"aeiou".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Chest gave`;
-        //TODO: Perhaps replace chatConfirms below to sender...  (Is it important to send a global message everytime a player gets a crate reward?)
-        if (+itemDef.action == Actions.giveItem) {
-            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString());
-            if (config.broadcastItemGifts) {
-                Server.chatConfirm(`${headerMsg} ${inventory.getStackInSlot(clickSlot).getDisplayName()} to ${sender.getName()}`);
-            } else {
-                sender.chatConfirm(`A ${inventory.getStackInSlot(clickSlot).getDisplayName()} has been added to your inventory!`);
-            }
-        } else if (+itemDef.action == Actions.giveKit) {
-            var ident = FEServer.getUserIdent(player.getUuid());
-
-            //This logic below is commented out and was the earlier method but after determing we needed to grant permission to use a kit
-            //It followed to simply grant permission to bypass cooldown as well
-            //var info = ident.getPlayerInfo();
-            //var timeoutName = "KIT_" + itemDef.kit;
-            //var timeout = info.getRemainingTimeout(timeoutName);
-            //info.removeTimeout(timeoutName)
-            //main command logic went here
-            //info.startTimeout(timeoutName, timeout)
-            
-            // Permissions.setPlayerPermission(ident, "fe.commands.kit.bypasscooldown", true);
-            // Permissions.setPlayerPermission(ident, `fe.commands.kit.${itemDef.kit}`, true);
-            //Server.getServer().chatConfirm("Granted perm");
-            Server.tryRunCommand(hiddenChatSender, "fekit", itemDef.kit, "give", sender.getName());
-            if (config.broadcastItemGifts) {
-                Server.chatConfirm(`${headerMsg} a ${itemDef.kit} Kit to ${sender.getName()}`);
-            } else {
-                sender.chatConfirm(`You recived the ${itemDef.kit} kit!`);
-            }
-            
-            //Clears permission by setting it to null -- this needs to be a slight timeout to give the kit command time to run
-            //Note: the difference between setting a timeout and calling a coroutine is a coroutine is guaranteed to run on the next tick.  a timeout is not.
-            //In this specific example, we don't need to wait a full tick, 5 ms is sufficent for the command to finish.
-            // setTimeout(function() {
-            //     Permissions.setPlayerPermissionProperty(ident, "fe.commands.kit.bypasscooldown", null);
-            //     Permissions.setPlayerPermissionProperty(ident, `fe.commands.kit.${itemDef.kit}`, null);
-            //     //Server.getServer().chatConfirm("Removed perm");
-            // }, 1);                        
-        } else if (+itemDef.action == Actions.giveMoney) {
-            Server.tryRunCommand(hiddenChatSender, "wallet", sender.getName(), "add", itemDef.amount.toString())
-            if (config.broadcastItemGifts) {
-                Server.chatConfirm(`${headerMsg} \$${itemDef.amount.toString()} Credits to ${sender.getName()}`);
-            } else {
-                sender.chatConfirm(`\$${itemDef.amount.toString()} Credits were added to your account!`)
-            }
-        } else if (+itemDef.action == Actions.crateKey) {
-            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), config.crateKey, 1, 0, `{display:{Name:"${FirstLetterToUpper(itemDef.crate)} Key"},crate:"${itemDef.crate}"}`);
-            if (config.broadcastItemGifts) {
-                Server.chatConfirm(`${headerMsg} ${FirstLetterToUpper(itemDef.crate)} Key to ${sender.getName()}`)
-            } else {
-                sender.chatConfirm(`You won a  ${FirstLetterToUpper(itemDef.crate)} Key!`)
-            }
-        }
+    //Server.chat("a=" + clickSlot + ", b=" + clickFlag + ", c=" + clickType + ", d=" + inventory.getSize());        
+    var crateKey = inventory.getName();    
+    var handItem = player.getInventory().getCurrentItem();
+    
+    if (clickType == "PICKUP" && crateKey!= "container.inventory" && itemstack != mc.item.ItemStack.EMPTY) {
+        var handNbt = getNbt(handItem);                       
+        if (handNbt["I:selecteditems"] == null) {
+            handNbt["I:selecteditems"] = [];
+        }        
+        var _nbt = getNbt(itemstack);
+        if (itemstack.getItem() == crateItem) {
+            handNbt["I:selecteditems"].push(_nbt["i:itemdefindex"]);
         
-        //Remove key from player
-        var handItem = player.getInventory().getCurrentItem();
-        handItem.setStackSize(handItem.getStackSize()-1);
-        //Never Run closeScreen() from this callback method!
-        FEServer.AddCoRoutine(1, 1, "closeScreen", sender);
-    }
+            if (handNbt["I:selecteditems"].length >= config.crates[crateKey].pickNumber) {
+                for (var i in handNbt["I:selecteditems"]) {
+                    var itemDef = config.crates[crateKey].items[handNbt["I:selecteditems"][i].toString()];
+                    
+                    var headerMsg = `A${"aeiou".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Chest gave`;
+
+                    if (+itemDef.action == Actions.giveItem) {
+                        Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString());
+                        if (config.broadcastItemGifts) {
+                            Server.chatConfirm(`${headerMsg} ${inventory.getStackInSlot(+i).getDisplayName()} to ${sender.getName()}`);
+                        } else {
+                            sender.chatConfirm(`A ${inventory.getStackInSlot(+i).getDisplayName()} has been added to your inventory!`);
+                        }
+                    } else if (+itemDef.action == Actions.giveKit) {
+                        var ident = FEServer.getUserIdent(player.getUuid());
+
+                        Server.tryRunCommand(hiddenChatSender, "fekit", itemDef.kit, "give", sender.getName());
+                        if (config.broadcastItemGifts) {
+                            Server.chatConfirm(`${headerMsg} a ${itemDef.kit} Kit to ${sender.getName()}`);
+                        } else {
+                            sender.chatConfirm(`You recived the ${itemDef.kit} kit!`);
+                        }
+                                        
+                    } else if (+itemDef.action == Actions.giveMoney) {
+                        Server.tryRunCommand(hiddenChatSender, "wallet", sender.getName(), "add", itemDef.amount.toString())
+                        if (config.broadcastItemGifts) {
+                            Server.chatConfirm(`${headerMsg} \$${itemDef.amount.toString()} Credits to ${sender.getName()}`);
+                        } else {
+                            sender.chatConfirm(`\$${itemDef.amount.toString()} Credits were added to your account!`)
+                        }
+                    } else if (+itemDef.action == Actions.crateKey) {
+                        Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), config.crateKey, 1, 0, `{display:{Name:"${FirstLetterToUpper(itemDef.crate)} Key"},crate:"${itemDef.crate}"}`);
+                        if (config.broadcastItemGifts) {
+                            Server.chatConfirm(`${headerMsg} ${FirstLetterToUpper(itemDef.crate)} Key to ${sender.getName()}`)
+                        } else {
+                            sender.chatConfirm(`You won a  ${FirstLetterToUpper(itemDef.crate)} Key!`)
+                        }
+                    }
+                }
+                delete handNbt["I:selecteditems"];
+                //Remove key from player
+                handItem.setStackSize(handItem.getStackSize()-1);
+                //Never Run closeScreen() from this callback method!
+                FEServer.AddCoRoutine(1, 1, "closeScreen", sender);
+            } else {
+                //Reveal Item
+                var itemDef = config.crates[crateKey].items[_nbt["i:itemdefindex"].toString()];         
+                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1);
+                setNbt(newItemstack, _nbt);
+                inventory.setStackInSlot(clickSlot, newItemstack);            
+                //Server.chatConfirm(JSON.stringify(handNbt));                
+            }        
+            setNbt(handItem, handNbt);
+        }
+    } else if (clickType == "CLOSE") {
+        //Remove nbt data on a seperate thread to prevent a desync
+        setTimeout(function() {
+            var handNbt = getNbt(handItem);
+            if (handNbt != null && handNbt["I:selecteditems"] != null) {
+                delete handNbt["I:selecteditems"];
+                setNbt(handItem, handNbt);
+            }
+        }, 1);
+    } else if (clickType == "QUICK_MOVE") {                    
+        //Return itemstack to block quick_move operation
+        return itemstack;
+    } 
+    return mc.item.ItemStack.EMPTY;
 }
 
+function removeNbt(sender: mc.ICommandSender, handItem: mc.item.ItemStack) {
+    var handNbt = getNbt(handItem);
+    delete handNbt["I:selecteditems"];
+    setNbt(handItem, handNbt); 
+}
 function closeScreen(sender: mc.ICommandSender) {
     if (sender) {
         let player = sender.getPlayer();
