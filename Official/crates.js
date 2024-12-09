@@ -43,12 +43,13 @@ else {
                     },
                     {
                         name: "minecraft:planks",
-                        action: 3.0,
+                        action: Actions.crateKey,
                         crate: "diamond",
                         chance: 25
                     }
                 ],
-                pickNumber: 3
+                pickNumber: 3,
+                size: 54
             },
             iron: {
                 items: [
@@ -79,12 +80,13 @@ else {
                     },
                     {
                         name: "minecraft:planks",
-                        action: 3.0,
+                        action: Actions.crateKey,
                         crate: "diamond",
                         chance: 45
                     }
                 ],
-                pickNumber: 2
+                pickNumber: 2,
+                size: 27
             },
             diamond: {
                 items: [
@@ -115,12 +117,13 @@ else {
                     },
                     {
                         name: "minecraft:planks",
-                        action: 3.0,
+                        action: Actions.crateKey,
                         crate: "diamond",
                         chance: 15
                     }
                 ],
-                pickNumber: 1
+                pickNumber: 1,
+                size: 36
             }
         },
         definitions: [
@@ -132,6 +135,24 @@ else {
                     dim: 0
                 },
                 crate: "basic"
+            },
+            {
+                position: {
+                    x: -189,
+                    y: 66,
+                    z: 255,
+                    dim: 0
+                },
+                crate: "iron"
+            },
+            {
+                position: {
+                    x: -191,
+                    y: 66,
+                    z: 255,
+                    dim: 0
+                },
+                crate: "diamond"
             }
         ],
         crateKey: "minecraft:tripwire_hook",
@@ -187,7 +208,7 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
         if (pos.getX() == definition.position.x
             && pos.getY() == definition.position.y
             && pos.getZ() == definition.position.z
-            && dim == definition.position.dim && right) {
+            && dim == definition.position.dim && right && event.getHand() == 0) {
             event.setCanceled(true);
             var crate = config.crates[definition.crate];
             var cdata = JSON.stringify(crate);
@@ -206,15 +227,24 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
 function openMenu(sender, crate) {
     if (sender && sender.getPlayer() != null) {
         var items = [];
+        var chanceMap = [];
+        var totalChance = 0;
         for (var i in config.crates[crate].items) {
-            var itemDef = config.crates[crate].items[i];
-            var item = new mc.item.ItemStack(crateItem, 1);
-            setNbt(item, { "i:itemdefindex": i, "c:display": { "S:Lore": [getActionLore(itemDef.action)] } });
-            items.push(item);
+            totalChance += config.crates[crate].items[i].chance;
+            chanceMap.push(totalChance);
         }
-        items.sort(function (a, b) {
-            return Math.random() * 2 - 1;
-        });
+        for (var i = 0; i < config.crates[crate].size; i++) {
+            var chance = Math.random() * totalChance;
+            for (var j in chanceMap) {
+                if (chance <= chanceMap[j]) {
+                    var itemDef = config.crates[crate].items[j];
+                    var item = new mc.item.ItemStack(crateItem, 1);
+                    setNbt(item, { "i:itemdefindex": j, "c:display": { "S:Lore": [getActionLore(itemDef.action)] } });
+                    items.push(item);
+                    break;
+                }
+            }
+        }
         if (items.length == 0) {
             sender.chatConfirm("The chest seems to be empty!");
             return;
@@ -240,7 +270,14 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
         var _nbt = getNbt(itemstack);
         if (itemstack.getItem() == crateItem) {
             handNbt["I:selecteditems"].push(_nbt["i:itemdefindex"]);
-            if (handNbt["I:selecteditems"].length >= config.crates[crateKey].pickNumber) {
+            if (handNbt["I:selecteditems"].length <= config.crates[crateKey].pickNumber) {
+                var itemDef = config.crates[crateKey].items[_nbt["i:itemdefindex"].toString()];
+                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1);
+                setNbt(newItemstack, _nbt);
+                inventory.setStackInSlot(clickSlot, newItemstack);
+                setNbt(handItem, handNbt);
+            }
+            if (handNbt["I:selecteditems"].length == config.crates[crateKey].pickNumber) {
                 for (var i in handNbt["I:selecteditems"]) {
                     var itemDef = config.crates[crateKey].items[handNbt["I:selecteditems"][i].toString()];
                     var headerMsg = "A".concat("aeiou".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Chest gave");
@@ -282,17 +319,9 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                         }
                     }
                 }
-                delete handNbt["I:selecteditems"];
                 handItem.setStackSize(handItem.getStackSize() - 1);
-                FEServer.AddCoRoutine(1, 1, "closeScreen", sender);
+                FEServer.AddCoRoutine(1, 60, "closeScreen", sender);
             }
-            else {
-                var itemDef = config.crates[crateKey].items[_nbt["i:itemdefindex"].toString()];
-                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1);
-                setNbt(newItemstack, _nbt);
-                inventory.setStackInSlot(clickSlot, newItemstack);
-            }
-            setNbt(handItem, handNbt);
         }
     }
     else if (clickType == "CLOSE") {
@@ -308,11 +337,6 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
         return itemstack;
     }
     return mc.item.ItemStack.EMPTY;
-}
-function removeNbt(sender, handItem) {
-    var handNbt = getNbt(handItem);
-    delete handNbt["I:selecteditems"];
-    setNbt(handItem, handNbt);
 }
 function closeScreen(sender) {
     if (sender) {

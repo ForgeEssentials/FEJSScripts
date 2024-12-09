@@ -35,7 +35,8 @@
           "chance": 25.0
         }
       },
-      "pickNumber": 3.0
+      "pickNumber": 3.0,
+      "size": 54.0
     },
     "iron": {
       "items": {
@@ -71,7 +72,8 @@
           "chance": 45.0
         }
       },
-      "pickNumber": 2.0
+      "pickNumber": 2.0,
+      "size": 27.0
     },
     "diamond": {
       "items": {
@@ -107,7 +109,8 @@
           "chance": 15.0
         }
       },
-      "pickNumber": 1.0
+      "pickNumber": 1.0,
+      "size": 36.0
     }
   },
   "crateItem": "minecraft:chest",
@@ -121,6 +124,24 @@
         "dim": 0.0
       },
       "crate": "basic"
+    },
+    "1": {
+      "position": {
+        "x": -189.0,
+        "y": 66.0,
+        "z": 255.0,
+        "dim": 0.0
+      },
+      "crate": "iron"
+    },
+    "2": {
+      "position": {
+        "x": -191.0,
+        "y": 66.0,
+        "z": 255.0,
+        "dim": 0.0
+      },
+      "crate": "diamond"
     }
   },
   "crateKey": "minecraft:tripwire_hook"
