@@ -231,8 +231,6 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
             && pos.getZ() == definition.position.z
             && dim == definition.position.dim && right && event.getHand() == 0) {
                 event.setCanceled(true);
-
-                let crate = config.crates[definition.crate];
                 
                 if (handItem.getItem().getName() != config.crateKey) 
                 {
@@ -244,7 +242,7 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                     sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
                     return;
                 }                
-                //Server.chatConfirm("Crate (" + definition.crate + "): " + (crate instanceof Object ? JSON.stringify(crate) : toJson(crate)));
+                //Server.chatConfirm("Crate (" + definition.crate + "): " + (config.crates[definition.crate] instanceof Object ? JSON.stringify(config.crates[definition.crate]) : toJson(config.crates[definition.crate])));
                 openMenu(sender, definition.crate);
         }
     }
@@ -299,7 +297,7 @@ function toJson(obj : any) : string {
             let objStr = "{";
             let j = 0;
             for (var i in obj) {
-                objStr += `"${j == 0 ? "" : ","}${i}":${toJson(obj[i])}`;
+                objStr += `${j == 0 ? "" : ","}"${i}":${toJson(obj[i])}`;
                 j++;
             }
             objStr += "}";

@@ -215,7 +215,6 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
             && pos.getZ() == definition.position.z
             && dim == definition.position.dim && right && event.getHand() == 0) {
             event.setCanceled(true);
-            var crate = config.crates[definition.crate];
             if (handItem.getItem().getName() != config.crateKey) {
                 sender.chatError("You need a key in your hand to open this!");
                 return;
@@ -224,7 +223,6 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
                 sender.chatError("You need a ".concat(FirstLetterToUpper(definition.crate), " Key to open this crate!"));
                 return;
             }
-            //Server.chatConfirm("Crate (" + definition.crate + "): " + (crate instanceof Object ? JSON.stringify(crate) : toJson(crate)));
             openMenu(sender, definition.crate);
         }
     }
@@ -270,7 +268,7 @@ function toJson(obj) {
             var objStr = "{";
             var j = 0;
             for (var i in obj) {
-                objStr += "\"".concat(j == 0 ? "" : ",").concat(i, "\":").concat(toJson(obj[i]));
+                objStr += "".concat(j == 0 ? "" : ",", "\"").concat(i, "\":").concat(toJson(obj[i]));
                 j++;
             }
             objStr += "}";
