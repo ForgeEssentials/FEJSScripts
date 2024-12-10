@@ -263,14 +263,22 @@ function FirstLetterToUpper(s) {
     return s[0].toUpperCase() + s.substring(1);
 }
 function toJson(obj) {
-    var objStr = "";
-    if (typeof (obj) != "object") {
-        return "\"".concat(obj.toString(), "\"");
+    switch (typeof (obj)) {
+        case "undefined":
+            return null;
+        case "object":
+            var objStr = "";
+            for (var i in obj) {
+                objStr += "{\"".concat(i, "\":").concat(toJson(obj[i]), "}");
+            }
+            return objStr;
+        case "number":
+        case "boolean":
+        case "bigint":
+            return obj.toString();
+        default:
+            return "\"".concat(obj.toString(), "\"");
     }
-    for (var i in obj) {
-        objStr += "{\"".concat(i, "\":").concat(toJson(obj[i]), "}");
-    }
-    return objStr;
 }
 var hiddenChatSender = Server.getServer().doAs(null, true);
 function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstack) {

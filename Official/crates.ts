@@ -290,17 +290,24 @@ function FirstLetterToUpper(s: string): string {
     return s[0].toUpperCase() + s.substring(1);
 }
 
-function toJson(obj : any) {
-    let objStr = "";
-    if (typeof(obj) != "object") {
-        return `"${obj.toString()}"`;
+function toJson(obj : any) : string {
+    switch(typeof(obj)) {
+        case "undefined":
+            return null;
+        case "object":
+            
+            let objStr = "";
+            for (var i in obj) {
+                objStr += `{"${i}":${toJson(obj[i])}}`;
+            }          
+            return objStr;       
+        case "number":
+        case "boolean":
+        case "bigint":            
+            return obj.toString();
+        default:
+            return `"${obj.toString()}"`;
     }
-
-    for (var i in obj) {
-        objStr += `{"${i}":${toJson(obj[i])}}`;
-    }
-    
-    return objStr;
 }
 var hiddenChatSender = Server.getServer().doAs(null, true);
 function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: int, clickType: String, inventory: mc.item.Inventory, itemstack: mc.item.ItemStack) : mc.item.ItemStack {
