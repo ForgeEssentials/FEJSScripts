@@ -18,7 +18,12 @@ else {
                 items: [
                     {
                         name: "minecraft:iron_nugget",
-                        tag: {},
+                        tag: {
+                            display: {
+                                Name: "The Denver Nuggets"
+                            }
+                        },
+                        meta: 0,
                         action: Actions.giveItem,
                         amount: 9,
                         chance: 25
@@ -257,6 +262,16 @@ function openMenu(sender, crate) {
 function FirstLetterToUpper(s) {
     return s[0].toUpperCase() + s.substring(1);
 }
+function toJson(obj) {
+    var objStr = "";
+    if (typeof (obj) != "object") {
+        return "\"".concat(obj.toString(), "\"");
+    }
+    for (var i in obj) {
+        objStr += "{\"".concat(i, "\":").concat(toJson(obj[i]), "}");
+    }
+    return objStr;
+}
 var hiddenChatSender = Server.getServer().doAs(null, true);
 function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstack) {
     var sender = player.asCommandSender();
@@ -282,12 +297,24 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                     var itemDef = config.crates[crateKey].items[handNbt["I:selecteditems"][i].toString()];
                     var headerMsg = "A".concat("aeiou".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Chest gave");
                     if (+itemDef.action == Actions.giveItem) {
-                        Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString());
-                        if (config.broadcastItemGifts) {
-                            Server.chatConfirm("".concat(headerMsg, " ").concat(inventory.getStackInSlot(+i).getDisplayName(), " to ").concat(sender.getName()));
+                        var nbtString;
+                        var meta = itemDef["meta"];
+                        if (meta == null) {
+                            meta = 0;
+                        }
+                        if (itemDef.tag instanceof Object) {
+                            nbtString = JSON.stringify(itemDef.tag);
                         }
                         else {
-                            sender.chatConfirm("A ".concat(inventory.getStackInSlot(+i).getDisplayName(), " has been added to your inventory!"));
+                            nbtString = toJson(itemDef.tag);
+                        }
+                        Server.chatConfirm(nbtString);
+                        Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta, nbtString);
+                        if (config.broadcastItemGifts) {
+                            Server.chatConfirm("".concat(headerMsg, " ").concat(mc.item.Item.get(itemDef.name).getName(), " to ").concat(sender.getName()));
+                        }
+                        else {
+                            sender.chatConfirm("A ".concat(mc.item.Item.get(itemDef.name).getName(), " has been added to your inventory!"));
                         }
                     }
                     else if (+itemDef.action == Actions.giveKit) {

@@ -5,7 +5,11 @@
       "items": {
         "0": {
           "name": "minecraft:iron_nugget",
-          "tag": {},
+          "tag": {
+            "display": {
+              "Name": "The Denver Nuggets"
+            }
+          },
           "action": 0.0,
           "amount": 9.0,
           "chance": 25.0
