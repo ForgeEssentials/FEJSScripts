@@ -242,7 +242,7 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                     sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
                     return;
                 }                
-                //Server.chatConfirm("Crate (" + definition.crate + "): " + (config.crates[definition.crate] instanceof Object ? JSON.stringify(config.crates[definition.crate]) : toJson(config.crates[definition.crate])));
+                //sender.chatConfirm("Crate (" + definition.crate + "): " + (config.crates[definition.crate] instanceof Object ? JSON.stringify(config.crates[definition.crate]) : toJson(config.crates[definition.crate])));
                 openMenu(sender, definition.crate);
         }
     }
@@ -294,13 +294,24 @@ function toJson(obj : any) : string {
             return null;
         case "object":
             
-            let objStr = "{";
+            let isArray = false;
+            if (typeof(obj[0]) != "undefined") {
+                isArray = true;
+                let j = 0;
+                for (let i in obj) {
+                    if (+i != j) {
+                        isArray = false;
+                    }
+                    j++;
+                }
+            }
+            let objStr = isArray ? "[" :"{";
             let j = 0;
-            for (var i in obj) {
-                objStr += `${j == 0 ? "" : ","}"${i}":${toJson(obj[i])}`;
+            for (let i in obj) {                
+                objStr += `${j == 0 ? "" : ","}${isArray ? "": `"${i}":`}${toJson(obj[i])}`;
                 j++;
             }
-            objStr += "}";
+            objStr += isArray ? "]" : "}";
             return objStr;       
         case "number":
         case "boolean":

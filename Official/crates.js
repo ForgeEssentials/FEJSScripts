@@ -265,13 +265,24 @@ function toJson(obj) {
         case "undefined":
             return null;
         case "object":
-            var objStr = "{";
+            var isArray = false;
+            if (typeof (obj[0]) != "undefined") {
+                isArray = true;
+                var j_1 = 0;
+                for (var i in obj) {
+                    if (+i != j_1) {
+                        isArray = false;
+                    }
+                    j_1++;
+                }
+            }
+            var objStr = isArray ? "[" : "{";
             var j = 0;
             for (var i in obj) {
-                objStr += "".concat(j == 0 ? "" : ",", "\"").concat(i, "\":").concat(toJson(obj[i]));
+                objStr += "".concat(j == 0 ? "" : ",").concat(isArray ? "" : "\"".concat(i, "\":")).concat(toJson(obj[i]));
                 j++;
             }
-            objStr += "}";
+            objStr += isArray ? "]" : "}";
             return objStr;
         case "number":
         case "boolean":
