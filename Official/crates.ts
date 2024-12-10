@@ -233,7 +233,7 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                 event.setCanceled(true);
 
                 let crate = config.crates[definition.crate];
-                let cdata = JSON.stringify(crate);
+                
                 if (handItem.getItem().getName() != config.crateKey) 
                 {
                     sender.chatError("You need a key in your hand to open this!")
@@ -244,7 +244,7 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                     sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
                     return;
                 }                
-                //Server.chatConfirm("Crate (" + definition.crate + "): " + (cdata != undefined ? cdata : crate));
+                //Server.chatConfirm("Crate (" + definition.crate + "): " + (crate instanceof Object ? JSON.stringify(crate) : toJson(crate)));
                 openMenu(sender, definition.crate);
         }
     }
@@ -350,7 +350,7 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                         } else {
                             nbtString = toJson(itemDef.tag);                            
                         }
-                        Server.chatConfirm(nbtString);
+                        //Server.chatConfirm(nbtString);
                         Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta, nbtString);
                         if (config.broadcastItemGifts) {
                             Server.chatConfirm(`${headerMsg} ${mc.item.Item.get(itemDef.name).getName()} to ${sender.getName()}`);
