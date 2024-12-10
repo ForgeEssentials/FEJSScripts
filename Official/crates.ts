@@ -244,7 +244,7 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                     sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
                     return;
                 }                
-                //Server.chatConfirm("Crate (" + definition.crate + "): " + (crate instanceof Object ? JSON.stringify(crate) : toJson(crate)));
+                Server.chatConfirm("Crate (" + definition.crate + "): " + (crate instanceof Object ? JSON.stringify(crate) : toJson(crate)));
                 openMenu(sender, definition.crate);
         }
     }
@@ -296,10 +296,13 @@ function toJson(obj : any) : string {
             return null;
         case "object":
             
-            let objStr = "";
+            let objStr = "{";
+            let j = 0;
             for (var i in obj) {
-                objStr += `{"${i}":${toJson(obj[i])}}`;
-            }          
+                objStr += `"${j == 0 ? "" : ","}${i}":${toJson(obj[i])}`;
+                j++;
+            }
+            objStr += "}";
             return objStr;       
         case "number":
         case "boolean":
@@ -330,7 +333,7 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                 var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1);
                 setNbt(newItemstack, _nbt);
                 inventory.setStackInSlot(clickSlot, newItemstack);        
-                //Server.chatConfirm(JSON.stringify(handNbt));                    
+                Server.chatConfirm(JSON.stringify(handNbt));                    
                 setNbt(handItem, handNbt);
             }
             if (handNbt["I:selecteditems"].length == config.crates[crateKey].pickNumber) {

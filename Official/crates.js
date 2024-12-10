@@ -224,7 +224,7 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
                 sender.chatError("You need a ".concat(FirstLetterToUpper(definition.crate), " Key to open this crate!"));
                 return;
             }
-            //Server.chatConfirm("Crate (" + definition.crate + "): " + (crate instanceof Object ? JSON.stringify(crate) : toJson(crate)));
+            Server.chatConfirm("Crate (" + definition.crate + "): " + (crate instanceof Object ? JSON.stringify(crate) : toJson(crate)));
             openMenu(sender, definition.crate);
         }
     }
@@ -267,10 +267,13 @@ function toJson(obj) {
         case "undefined":
             return null;
         case "object":
-            var objStr = "";
+            var objStr = "{";
+            var j = 0;
             for (var i in obj) {
-                objStr += "{\"".concat(i, "\":").concat(toJson(obj[i]), "}");
+                objStr += "\"".concat(j == 0 ? "" : ",").concat(i, "\":").concat(toJson(obj[i]));
+                j++;
             }
+            objStr += "}";
             return objStr;
         case "number":
         case "boolean":
@@ -298,6 +301,7 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                 var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1);
                 setNbt(newItemstack, _nbt);
                 inventory.setStackInSlot(clickSlot, newItemstack);
+                Server.chatConfirm(JSON.stringify(handNbt));
                 setNbt(handItem, handNbt);
             }
             if (handNbt["I:selecteditems"].length == config.crates[crateKey].pickNumber) {
