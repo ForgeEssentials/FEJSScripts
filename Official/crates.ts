@@ -14,6 +14,8 @@ if (typeof config !== 'undefined') {
     if (config.version < configVersion) {
         //TODO: do any config updates as needed
     }
+    //Only send debug message to server.  (Also, will not broadcast to discord)
+    Server.getServer().chat(`Config File Loaded: ${toJson(config)}`)
 } else {
     Server.chatError("Config File 'crates.json' Not found!");
     var config : any = {
@@ -241,8 +243,9 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                 if (getNbt(handItem)["S:crate"] != definition.crate) {
                     sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
                     return;
-                }                
-                //sender.chatConfirm("Crate (" + definition.crate + "): " + (config.crates[definition.crate] instanceof Object ? JSON.stringify(config.crates[definition.crate]) : toJson(config.crates[definition.crate])));
+                }
+                //Only send debug message to server.  (Also, will not broadcast to discord)
+                //Server.getServer().chatConfirm("Crate (" + definition.crate + "): " + (config.crates[definition.crate] instanceof Object ? JSON.stringify(config.crates[definition.crate]) : toJson(config.crates[definition.crate])));
                 openMenu(sender, definition.crate);
         }
     }

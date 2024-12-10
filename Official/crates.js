@@ -9,6 +9,7 @@ var configVersion = 1;
 if (typeof config !== 'undefined') {
     if (config.version < configVersion) {
     }
+    Server.getServer().chat("Config File Loaded: ".concat(toJson(config)));
 }
 else {
     Server.chatError("Config File 'crates.json' Not found!");
