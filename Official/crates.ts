@@ -244,8 +244,9 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
     var pos = event.getPos();
     var dim = event.getWorld().getDimension();
     var sender = event.getPlayer().asCommandSender();
-    var handItem = event.getPlayer().getInventory().getCurrentItem();
-    
+    var handItem = event.getPlayer().getInventory().getCurrentItem();    
+    let handNbt = getNbt(handItem);
+
     for (var index in config.definitions) {
         
         let definition = config.definitions[index];
@@ -261,7 +262,6 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                     return;
                 }
                 
-                let handNbt = getNbt(handItem);
                 if (handNbt == null || handNbt["S:crate"] != definition.crate) {
                     sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
                     return;
@@ -270,6 +270,12 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                 //Server.getServer().chatConfirm("Crate (" + definition.crate + "): " + (config.crates[definition.crate] instanceof Object ? JSON.stringify(config.crates[definition.crate]) : toJson(config.crates[definition.crate])));
                 openMenu(sender, definition.crate);
         }
+    }
+    
+
+    if (right && handItem.getItem().getName() == config.crateKey && handNbt != null && handNbt["S:crate"]) {
+        sender.chatError("This doesn't go here!");
+        event.setCanceled(true);
     }
 });
 

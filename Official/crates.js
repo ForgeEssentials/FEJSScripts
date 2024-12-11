@@ -229,6 +229,7 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
     var dim = event.getWorld().getDimension();
     var sender = event.getPlayer().asCommandSender();
     var handItem = event.getPlayer().getInventory().getCurrentItem();
+    var handNbt = getNbt(handItem);
     for (var index in config.definitions) {
         var definition = config.definitions[index];
         if (pos.getX() == definition.position.x
@@ -240,13 +241,16 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
                 sender.chatError("This isn't a crate key!");
                 return;
             }
-            var handNbt = getNbt(handItem);
             if (handNbt == null || handNbt["S:crate"] != definition.crate) {
                 sender.chatError("You need a ".concat(FirstLetterToUpper(definition.crate), " Key to open this crate!"));
                 return;
             }
             openMenu(sender, definition.crate);
         }
+    }
+    if (right && handItem.getItem().getName() == config.crateKey && handNbt != null && handNbt["S:crate"]) {
+        sender.chatError("This doesn't go here!");
+        event.setCanceled(true);
     }
 });
 function openMenu(sender, crate) {
