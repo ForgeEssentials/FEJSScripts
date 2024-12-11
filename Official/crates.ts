@@ -314,17 +314,21 @@ function toJson(obj : any, FEJson = true, key = null) : string {
             }
             let objStr = isArray ? "[" :"{";
             let j = -1;
+            if (!FEJson && isArray && key[0] != NBT_STRING[0]) {
+                objStr+=key[0]
+                objStr+=';'
+            }
             for (let i in obj) {                
                 j++;
-                objStr += `${j == 0 ? "" : ","}${isArray ? "": `"${FEJson ? i : i.substring(2)}":`}${toJson(obj[i], FEJson, isArray ? null : i)}`;                
+                objStr += `${j == 0 ? "" : ","}${isArray ? "": `"${FEJson ? i : i.substring(2)}":`}${toJson(obj[i], FEJson, isArray ? key : i)}`;                
             }
             objStr += isArray ? "]" : "}";
             return j != -1 ? objStr : null;       
         case "number":
         case "boolean":
         case "bigint":
-            if (!FEJson && key != null && key[0] != NBT_INT) {
-                return obj.toString() + key[0];
+            if (!FEJson && key != null && key[0] != NBT_INT[0] && key[0] != NBT_INT_ARRAY[0]) {
+                return obj.toString() + key[0].toLowerCase();
             }
             return obj.toString();
         default:

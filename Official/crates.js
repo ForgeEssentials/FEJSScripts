@@ -285,17 +285,21 @@ function toJson(obj, FEJson, key) {
             }
             var objStr = isArray ? "[" : "{";
             var j = -1;
+            if (!FEJson && isArray && key[0] != NBT_STRING[0]) {
+                objStr += key[0];
+                objStr += ';';
+            }
             for (var i in obj) {
                 j++;
-                objStr += "".concat(j == 0 ? "" : ",").concat(isArray ? "" : "\"".concat(FEJson ? i : i.substring(2), "\":")).concat(toJson(obj[i], FEJson, isArray ? null : i));
+                objStr += "".concat(j == 0 ? "" : ",").concat(isArray ? "" : "\"".concat(FEJson ? i : i.substring(2), "\":")).concat(toJson(obj[i], FEJson, isArray ? key : i));
             }
             objStr += isArray ? "]" : "}";
             return j != -1 ? objStr : null;
         case "number":
         case "boolean":
         case "bigint":
-            if (!FEJson && key != null && key[0] != NBT_INT) {
-                return obj.toString() + key[0];
+            if (!FEJson && key != null && key[0] != NBT_INT[0] && key[0] != NBT_INT_ARRAY[0]) {
+                return obj.toString() + key[0].toLowerCase();
             }
             return obj.toString();
         default:
