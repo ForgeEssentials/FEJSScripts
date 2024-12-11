@@ -257,11 +257,12 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
                 
                 if (handItem.getItem().getName() != config.crateKey) 
                 {
-                    sender.chatError("You need a key in your hand to open this!")
+                    sender.chatError("This isn't a crate key!")
                     return;
                 }
                 
-                if (getNbt(handItem)["S:crate"] != definition.crate) {
+                let handNbt = getNbt(handItem);
+                if (handNbt == null || handNbt["S:crate"] != definition.crate) {
                     sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
                     return;
                 }

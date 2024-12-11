@@ -237,10 +237,11 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
             && dim == definition.position.dim && right && event.getHand() == 0) {
             event.setCanceled(true);
             if (handItem.getItem().getName() != config.crateKey) {
-                sender.chatError("You need a key in your hand to open this!");
+                sender.chatError("This isn't a crate key!");
                 return;
             }
-            if (getNbt(handItem)["S:crate"] != definition.crate) {
+            var handNbt = getNbt(handItem);
+            if (handNbt == null || handNbt["S:crate"] != definition.crate) {
                 sender.chatError("You need a ".concat(FirstLetterToUpper(definition.crate), " Key to open this crate!"));
                 return;
             }
