@@ -20,8 +20,9 @@ else {
                     {
                         name: "minecraft:iron_nugget",
                         tag: {
-                            display: {
-                                Name: "The Denver Nuggets"
+                            'c:display': {
+                                'S:Name': "The Denver Nuggets",
+                                'S:Lore': ["A legendary nugget!"]
                             }
                         },
                         meta: 0,
@@ -261,11 +262,16 @@ function openMenu(sender, crate) {
 function FirstLetterToUpper(s) {
     return s[0].toUpperCase() + s.substring(1);
 }
-function toJson(obj) {
+function toJson(obj, FEJson, key) {
+    if (FEJson === void 0) { FEJson = true; }
+    if (key === void 0) { key = null; }
     switch (typeof (obj)) {
         case "undefined":
             return null;
         case "object":
+            if (obj == null) {
+                return null;
+            }
             var isArray = false;
             if (typeof (obj[0]) != "undefined") {
                 isArray = true;
@@ -278,16 +284,19 @@ function toJson(obj) {
                 }
             }
             var objStr = isArray ? "[" : "{";
-            var j = 0;
+            var j = -1;
             for (var i in obj) {
-                objStr += "".concat(j == 0 ? "" : ",").concat(isArray ? "" : "\"".concat(i, "\":")).concat(toJson(obj[i]));
                 j++;
+                objStr += "".concat(j == 0 ? "" : ",").concat(isArray ? "" : "\"".concat(FEJson ? i : i.substring(2), "\":")).concat(toJson(obj[i], FEJson, isArray ? null : i));
             }
             objStr += isArray ? "]" : "}";
-            return objStr;
+            return j != -1 ? objStr : null;
         case "number":
         case "boolean":
         case "bigint":
+            if (!FEJson && key != null && key[0] != NBT_INT) {
+                return obj.toString() + key[0];
+            }
             return obj.toString();
         default:
             return "\"".concat(obj.toString(), "\"");
@@ -308,16 +317,20 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
             handNbt["I:selecteditems"].push(_nbt["i:itemdefindex"]);
             if (handNbt["I:selecteditems"].length <= config.crates[crateKey].pickNumber) {
                 var itemDef = config.crates[crateKey].items[_nbt["i:itemdefindex"].toString()];
-                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1);
-                setNbt(newItemstack, _nbt);
+                var meta = itemDef["meta"];
+                if (meta == null) {
+                    meta = 0;
+                }
+                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1, meta);
+                var nbtS = toJson(itemDef.tag);
+                setNbt(newItemstack, itemDef.action == Actions.giveItem && nbtS != null ? JSON.parse(nbtS) : _nbt);
                 inventory.setStackInSlot(clickSlot, newItemstack);
-                Server.chatConfirm(JSON.stringify(handNbt));
                 setNbt(handItem, handNbt);
             }
             if (handNbt["I:selecteditems"].length == config.crates[crateKey].pickNumber) {
                 for (var i in handNbt["I:selecteditems"]) {
                     var itemDef = config.crates[crateKey].items[handNbt["I:selecteditems"][i].toString()];
-                    var headerMsg = "A".concat("aeiou".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Chest gave");
+                    var headerMsg = "A".concat("aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Chest gave");
                     if (+itemDef.action == Actions.giveItem) {
                         var nbtString;
                         var meta = itemDef["meta"];
@@ -328,14 +341,22 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                             nbtString = JSON.stringify(itemDef.tag);
                         }
                         else {
-                            nbtString = toJson(itemDef.tag);
+                            nbtString = toJson(itemDef.tag, false);
                         }
-                        Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta, nbtString);
-                        if (config.broadcastItemGifts) {
-                            Server.chatConfirm("".concat(headerMsg, " ").concat(mc.item.Item.get(itemDef.name).getName(), " to ").concat(sender.getName()));
+                        var stack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.amount, meta);
+                        if (nbtString != null) {
+                            setNbt(stack, JSON.parse(toJson(itemDef.tag)));
+                            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta, nbtString);
                         }
                         else {
-                            sender.chatConfirm("A ".concat(mc.item.Item.get(itemDef.name).getName(), " has been added to your inventory!"));
+                            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta);
+                        }
+                        var displayName = stack.getDisplayName();
+                        if (config.broadcastItemGifts) {
+                            Server.chatConfirm("".concat(headerMsg, " ").concat(displayName, " to ").concat(sender.getName()));
+                        }
+                        else {
+                            sender.chatConfirm("A".concat(("aeiouAEIOU".search(displayName[0]) != -1 ? "n " : " ") + displayName, " has been added to your inventory!"));
                         }
                     }
                     else if (+itemDef.action == Actions.giveKit) {

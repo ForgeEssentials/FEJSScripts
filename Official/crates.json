@@ -6,8 +6,9 @@
         "0": {
           "name": "minecraft:iron_nugget",
           "tag": {
-            "display": {
-              "Name": "The Denver Nuggets"
+            "c:display": {
+              "S:Name": "The Denver Nuggets",
+              "S:Lore":["A legendary nugget!"]
             }
           },
           "action": 0.0,

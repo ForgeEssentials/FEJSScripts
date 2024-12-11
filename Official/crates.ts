@@ -25,8 +25,9 @@ if (typeof config !== 'undefined') {
                     {
                         name: "minecraft:iron_nugget",
                         tag: {
-                            display: {
-                                Name: "The Denver Nuggets"
+                            'c:display': {
+                                'S:Name': "The Denver Nuggets",
+                                'S:Lore': ["A legendary nugget!"]
                             }
                         },
                         meta: 0,
@@ -291,12 +292,15 @@ function FirstLetterToUpper(s: string): string {
     return s[0].toUpperCase() + s.substring(1);
 }
 
-function toJson(obj : any) : string {
+function toJson(obj : any, FEJson = true, key = null) : string {
+    
     switch(typeof(obj)) {
         case "undefined":
             return null;
         case "object":
-            
+            if (obj == null) {
+                return null;
+            }
             let isArray = false;
             if (typeof(obj[0]) != "undefined") {
                 isArray = true;
@@ -309,16 +313,19 @@ function toJson(obj : any) : string {
                 }
             }
             let objStr = isArray ? "[" :"{";
-            let j = 0;
+            let j = -1;
             for (let i in obj) {                
-                objStr += `${j == 0 ? "" : ","}${isArray ? "": `"${i}":`}${toJson(obj[i])}`;
                 j++;
+                objStr += `${j == 0 ? "" : ","}${isArray ? "": `"${FEJson ? i : i.substring(2)}":`}${toJson(obj[i], FEJson, isArray ? null : i)}`;                
             }
             objStr += isArray ? "]" : "}";
-            return objStr;       
+            return j != -1 ? objStr : null;       
         case "number":
         case "boolean":
-        case "bigint":            
+        case "bigint":
+            if (!FEJson && key != null && key[0] != NBT_INT) {
+                return obj.toString() + key[0];
+            }
             return obj.toString();
         default:
             return `"${obj.toString()}"`;
@@ -342,17 +349,22 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
             //Reveal Item
             if (handNbt["I:selecteditems"].length <= config.crates[crateKey].pickNumber) {
                 var itemDef = config.crates[crateKey].items[_nbt["i:itemdefindex"].toString()];         
-                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1);
-                setNbt(newItemstack, _nbt);
+                var meta : int = itemDef["meta"];
+                if (meta == null) {
+                    meta = 0;
+                }
+                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1, meta);
+                var nbtS = toJson(itemDef.tag);
+                setNbt(newItemstack, itemDef.action == Actions.giveItem && nbtS != null ? JSON.parse(nbtS) : _nbt);
                 inventory.setStackInSlot(clickSlot, newItemstack);        
-                Server.chatConfirm(JSON.stringify(handNbt));                    
+                //Server.chatConfirm(JSON.stringify(handNbt));                    
                 setNbt(handItem, handNbt);
             }
             if (handNbt["I:selecteditems"].length == config.crates[crateKey].pickNumber) {
                 for (var i in handNbt["I:selecteditems"]) {
                     var itemDef = config.crates[crateKey].items[handNbt["I:selecteditems"][i].toString()];
                     
-                    var headerMsg = `A${"aeiou".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Chest gave`;
+                    var headerMsg = `A${"aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Chest gave`;
 
                     if (+itemDef.action == Actions.giveItem) {
                         var nbtString : string;
@@ -363,14 +375,21 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                         if (itemDef.tag instanceof Object) {
                             nbtString = JSON.stringify(itemDef.tag);
                         } else {
-                            nbtString = toJson(itemDef.tag);                            
+                            nbtString = toJson(itemDef.tag, false);                            
                         }
                         //Server.chatConfirm(nbtString);
-                        Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta, nbtString);
-                        if (config.broadcastItemGifts) {
-                            Server.chatConfirm(`${headerMsg} ${mc.item.Item.get(itemDef.name).getName()} to ${sender.getName()}`);
+                        let stack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.amount, meta);
+                        if (nbtString != null) {
+                            setNbt(stack, JSON.parse(toJson(itemDef.tag)));                            
+                            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta, nbtString);
                         } else {
-                            sender.chatConfirm(`A ${mc.item.Item.get(itemDef.name).getName()} has been added to your inventory!`);
+                            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta);
+                        }
+                        let displayName = stack.getDisplayName();
+                        if (config.broadcastItemGifts) {
+                            Server.chatConfirm(`${headerMsg} ${displayName} to ${sender.getName()}`);
+                        } else {
+                            sender.chatConfirm(`A${("aeiouAEIOU".search(displayName[0]) != -1 ? "n " : " ") + displayName} has been added to your inventory!`);
                         }
                     } else if (+itemDef.action == Actions.giveKit) {
                         var ident = FEServer.getUserIdent(player.getUuid());
