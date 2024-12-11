@@ -15,7 +15,9 @@ if (typeof config !== 'undefined') {
         //TODO: do any config updates as needed
     }
     //Only send debug message to server.  (Also, will not broadcast to discord)
-    Server.getServer().chat(`Config File Loaded: ${toJson(config)}`)
+    let jsonConfig = toJson(config);
+    config = JSON.parse(jsonConfig);
+    Server.getServer().chat(`Config File Loaded: ${jsonConfig}`)
 } else {
     Server.chatError("Config File 'crates.json' Not found!");
     var config : any = {
@@ -206,6 +208,24 @@ function getActionLore(action: Actions) : string {
 
 Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
 
+FEServer.registerCommand({
+    name: "itemdata",
+    usage: "Prints FE complient data of current item",
+    opOnly: true,
+    permission: "fe.crates.admin",
+    processCommand: function(args: fe.CommandArgs) {
+        if (args.player == null) {
+            args.sender.chatError("Must be a player!");
+            return;
+        }
+        let FEJson =  true;
+        if (!args.isEmpty()) {
+            FEJson = args.parseBoolean();
+        }        
+        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
+    }
+});
+
 Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.player.PlayerInteractEvent) {      
     if (event.getPlayer() == null) {
         return;
@@ -357,10 +377,9 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                 if (meta == null) {
                     meta = 0;
                 }
-                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1, meta);
-                var nbtS = toJson(itemDef.tag);
-                setNbt(newItemstack, itemDef.action == Actions.giveItem && nbtS != null ? JSON.parse(nbtS) : _nbt);
-                inventory.setStackInSlot(clickSlot, newItemstack);        
+                var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1, meta);                
+                setNbt(newItemstack, itemDef.action == Actions.giveItem && itemDef.tag != null ? itemDef.tag : _nbt);
+                inventory.setStackInSlot(clickSlot, newItemstack);
                 //Server.chatConfirm(JSON.stringify(handNbt));                    
                 setNbt(handItem, handNbt);
             }
@@ -371,24 +390,16 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                     var headerMsg = `A${"aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Chest gave`;
 
                     if (+itemDef.action == Actions.giveItem) {
-                        var nbtString : string;
                         var meta : int = itemDef["meta"];
                         if (meta == null) {
                             meta = 0;
                         }
-                        if (itemDef.tag instanceof Object) {
-                            nbtString = JSON.stringify(itemDef.tag);
-                        } else {
-                            nbtString = toJson(itemDef.tag, false);                            
-                        }
                         //Server.chatConfirm(nbtString);
                         let stack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.amount, meta);
-                        if (nbtString != null) {
-                            setNbt(stack, JSON.parse(toJson(itemDef.tag)));                            
-                            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta, nbtString);
-                        } else {
-                            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta);
+                        if (itemDef.tag != null) {
+                            setNbt(stack, JSON.parse(toJson(itemDef.tag)));
                         }
+                        player.getInventory().addItemStackToInventory(stack);
                         let displayName = stack.getDisplayName();
                         if (config.broadcastItemGifts) {
                             Server.chatConfirm(`${headerMsg} ${displayName} to ${sender.getName()}`);

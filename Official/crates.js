@@ -9,7 +9,9 @@ var configVersion = 1;
 if (typeof config !== 'undefined') {
     if (config.version < configVersion) {
     }
-    Server.getServer().chat("Config File Loaded: ".concat(toJson(config)));
+    var jsonConfig = toJson(config);
+    config = JSON.parse(jsonConfig);
+    Server.getServer().chat("Config File Loaded: ".concat(jsonConfig));
 }
 else {
     Server.chatError("Config File 'crates.json' Not found!");
@@ -191,6 +193,23 @@ function getActionLore(action) {
     }
 }
 Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
+FEServer.registerCommand({
+    name: "itemdata",
+    usage: "Prints FE complient data of current item",
+    opOnly: true,
+    permission: "fe.crates.admin",
+    processCommand: function (args) {
+        if (args.player == null) {
+            args.sender.chatError("Must be a player!");
+            return;
+        }
+        var FEJson = true;
+        if (!args.isEmpty()) {
+            FEJson = args.parseBoolean();
+        }
+        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
+    }
+});
 Server.registerEvent("PlayerInteractEvent", function (event) {
     if (event.getPlayer() == null) {
         return;
@@ -326,8 +345,7 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                     meta = 0;
                 }
                 var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1, meta);
-                var nbtS = toJson(itemDef.tag);
-                setNbt(newItemstack, itemDef.action == Actions.giveItem && nbtS != null ? JSON.parse(nbtS) : _nbt);
+                setNbt(newItemstack, itemDef.action == Actions.giveItem && itemDef.tag != null ? itemDef.tag : _nbt);
                 inventory.setStackInSlot(clickSlot, newItemstack);
                 setNbt(handItem, handNbt);
             }
@@ -336,25 +354,15 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                     var itemDef = config.crates[crateKey].items[handNbt["I:selecteditems"][i].toString()];
                     var headerMsg = "A".concat("aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Chest gave");
                     if (+itemDef.action == Actions.giveItem) {
-                        var nbtString;
                         var meta = itemDef["meta"];
                         if (meta == null) {
                             meta = 0;
                         }
-                        if (itemDef.tag instanceof Object) {
-                            nbtString = JSON.stringify(itemDef.tag);
-                        }
-                        else {
-                            nbtString = toJson(itemDef.tag, false);
-                        }
                         var stack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.amount, meta);
-                        if (nbtString != null) {
+                        if (itemDef.tag != null) {
                             setNbt(stack, JSON.parse(toJson(itemDef.tag)));
-                            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta, nbtString);
                         }
-                        else {
-                            Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), itemDef.name, itemDef.amount.toString(), meta);
-                        }
+                        player.getInventory().addItemStackToInventory(stack);
                         var displayName = stack.getDisplayName();
                         if (config.broadcastItemGifts) {
                             Server.chatConfirm("".concat(headerMsg, " ").concat(displayName, " to ").concat(sender.getName()));
