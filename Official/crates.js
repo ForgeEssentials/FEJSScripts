@@ -192,97 +192,6 @@ function getActionLore(action) {
             return null;
     }
 }
-Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
-FEServer.registerCommand({
-    name: "itemdata",
-    usage: "Prints FE complient data of current item",
-    opOnly: true,
-    permission: "fe.crates.admin",
-    processCommand: function (args) {
-        if (args.player == null) {
-            args.sender.chatError("Must be a player!");
-            return;
-        }
-        var FEJson = true;
-        if (!args.isEmpty()) {
-            FEJson = args.parseBoolean();
-        }
-        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
-    }
-});
-Server.registerEvent("PlayerInteractEvent", function (event) {
-    if (event.getPlayer() == null) {
-        return;
-    }
-    var right = false;
-    var eventString = event.toString();
-    if (eventString.search("RightClickBlock") != -1) {
-        right = true;
-    }
-    else if (eventString.search("LeftClickBlock") != -1) {
-        right = false;
-    }
-    else {
-        return;
-    }
-    var pos = event.getPos();
-    var dim = event.getWorld().getDimension();
-    var sender = event.getPlayer().asCommandSender();
-    var handItem = event.getPlayer().getInventory().getCurrentItem();
-    var handNbt = getNbt(handItem);
-    for (var index in config.definitions) {
-        var definition = config.definitions[index];
-        if (pos.getX() == definition.position.x
-            && pos.getY() == definition.position.y
-            && pos.getZ() == definition.position.z
-            && dim == definition.position.dim && right && event.getHand() == 0) {
-            event.setCanceled(true);
-            if (handItem.getItem().getName() != config.crateKey) {
-                sender.chatError("This isn't a crate key!");
-                return;
-            }
-            if (handNbt == null || handNbt["S:crate"] != definition.crate) {
-                sender.chatError("You need a ".concat(FirstLetterToUpper(definition.crate), " Key to open this crate!"));
-                return;
-            }
-            openMenu(sender, definition.crate);
-        }
-    }
-    if (right && handItem.getItem().getName() == config.crateKey && handNbt != null && handNbt["S:crate"]) {
-        sender.chatError("This doesn't go here!");
-        event.setCanceled(true);
-    }
-});
-function openMenu(sender, crate) {
-    if (sender && sender.getPlayer() != null) {
-        var items = [];
-        var chanceMap = [];
-        var totalChance = 0;
-        for (var i in config.crates[crate].items) {
-            totalChance += config.crates[crate].items[i].chance;
-            chanceMap.push(totalChance);
-        }
-        for (var i = 0; i < config.crates[crate].size; i++) {
-            var chance = Math.random() * totalChance;
-            for (var j in chanceMap) {
-                if (chance <= chanceMap[j]) {
-                    var itemDef = config.crates[crate].items[j];
-                    var item = new mc.item.ItemStack(crateItem, 1);
-                    setNbt(item, { "i:itemdefindex": j, "c:display": { "S:Lore": [getActionLore(itemDef.action)] } });
-                    items.push(item);
-                    break;
-                }
-            }
-        }
-        if (items.length == 0) {
-            sender.chatConfirm("The chest seems to be empty!");
-            return;
-        }
-        var inventory = FEServer.createCustomInventory(crate, true, items);
-        var menu = FEServer.getMenuChest(crate, FirstLetterToUpper(crate) + " Chest", inventory, "onTestMenu");
-        sender.getPlayer().displayGUIChest(menu.getInventory());
-    }
-}
 function FirstLetterToUpper(s) {
     return s[0].toUpperCase() + s.substring(1);
 }
@@ -328,6 +237,99 @@ function toJson(obj, FEJson, key) {
             return obj.toString();
         default:
             return "\"".concat(obj.toString(), "\"");
+    }
+}
+Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
+FEServer.registerCommand({
+    name: "itemdata",
+    usage: "Prints FE complient data of current item",
+    opOnly: true,
+    permission: "fe.crates.admin",
+    processCommand: function (args) {
+        if (args.player == null) {
+            args.sender.chatError("Must be a player!");
+            return;
+        }
+        var FEJson = true;
+        if (!args.isEmpty()) {
+            FEJson = args.parseBoolean();
+        }
+        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
+    }
+});
+Server.registerEvent("PlayerInteractEvent", function (event) {
+    if (event.getPlayer() == null) {
+        return;
+    }
+    var right = false;
+    var eventString = event.toString();
+    if (eventString.search("RightClickBlock") != -1) {
+        right = true;
+    }
+    else if (eventString.search("LeftClickBlock") != -1) {
+        right = false;
+    }
+    else {
+        return;
+    }
+    var pos = event.getPos();
+    var dim = event.getWorld().getDimension();
+    var sender = event.getPlayer().asCommandSender();
+    var handItem = event.getPlayer().getInventory().getCurrentItem();
+    var handNbt = getNbt(handItem);
+    var found = false;
+    for (var index in config.definitions) {
+        var definition = config.definitions[index];
+        if (pos.getX() == definition.position.x
+            && pos.getY() == definition.position.y
+            && pos.getZ() == definition.position.z
+            && dim == definition.position.dim && right && event.getHand() == 0) {
+            event.setCanceled(true);
+            found = true;
+            if (handItem.getItem().getName() != config.crateKey) {
+                sender.chatError("This isn't a crate key!");
+                return;
+            }
+            if (handNbt == null || handNbt["S:crate"] != definition.crate) {
+                sender.chatError("You need a ".concat(FirstLetterToUpper(definition.crate), " Key to open this crate!"));
+                return;
+            }
+            openMenu(sender, definition.crate);
+        }
+    }
+    if (!found && right && handItem.getItem().getName() == config.crateKey && handNbt != null && handNbt["S:crate"]) {
+        sender.chatError("This doesn't go here!");
+        event.setCanceled(true);
+    }
+});
+function openMenu(sender, crate) {
+    if (sender && sender.getPlayer() != null) {
+        var items = [];
+        var chanceMap = [];
+        var totalChance = 0;
+        for (var i in config.crates[crate].items) {
+            totalChance += config.crates[crate].items[i].chance;
+            chanceMap.push(totalChance);
+        }
+        for (var i = 0; i < config.crates[crate].size; i++) {
+            var chance = Math.random() * totalChance;
+            for (var j in chanceMap) {
+                if (chance <= chanceMap[j]) {
+                    var itemDef = config.crates[crate].items[j];
+                    var item = new mc.item.ItemStack(crateItem, 1);
+                    setNbt(item, { "i:itemdefindex": j, "c:display": { "S:Lore": [getActionLore(itemDef.action)] } });
+                    items.push(item);
+                    break;
+                }
+            }
+        }
+        if (items.length == 0) {
+            sender.chatConfirm("The chest seems to be empty!");
+            return;
+        }
+        var inventory = FEServer.createCustomInventory(crate, true, items);
+        var menu = FEServer.getMenuChest(crate, FirstLetterToUpper(crate) + " Chest", inventory, "onTestMenu");
+        sender.getPlayer().displayGUIChest(menu.getInventory());
     }
 }
 var hiddenChatSender = Server.getServer().doAs(null, true);

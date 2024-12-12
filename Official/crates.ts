@@ -206,114 +206,6 @@ function getActionLore(action: Actions) : string {
     }
 }
 
-Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
-
-FEServer.registerCommand({
-    name: "itemdata",
-    usage: "Prints FE complient data of current item",
-    opOnly: true,
-    permission: "fe.crates.admin",
-    processCommand: function(args: fe.CommandArgs) {
-        if (args.player == null) {
-            args.sender.chatError("Must be a player!");
-            return;
-        }
-        let FEJson =  true;
-        if (!args.isEmpty()) {
-            FEJson = args.parseBoolean();
-        }        
-        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
-    }
-});
-
-Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.player.PlayerInteractEvent) {      
-    if (event.getPlayer() == null) {
-        return;
-    }
-
-    var right = false;
-    var eventString = event.toString();
-    if (eventString.search("RightClickBlock") != -1) {
-        right = true;
-    } else if (eventString.search("LeftClickBlock") != -1) {
-        right = false;
-    } else {
-        return;
-    }
-    
-    var pos = event.getPos();
-    var dim = event.getWorld().getDimension();
-    var sender = event.getPlayer().asCommandSender();
-    var handItem = event.getPlayer().getInventory().getCurrentItem();    
-    let handNbt = getNbt(handItem);
-
-    for (var index in config.definitions) {
-        
-        let definition = config.definitions[index];
-        if (pos.getX() == definition.position.x
-            && pos.getY() == definition.position.y
-            && pos.getZ() == definition.position.z
-            && dim == definition.position.dim && right && event.getHand() == 0) {
-                event.setCanceled(true);
-                
-                if (handItem.getItem().getName() != config.crateKey) 
-                {
-                    sender.chatError("This isn't a crate key!")
-                    return;
-                }
-                
-                if (handNbt == null || handNbt["S:crate"] != definition.crate) {
-                    sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
-                    return;
-                }
-                //Only send debug message to server.  (Also, will not broadcast to discord)
-                //Server.getServer().chatConfirm("Crate (" + definition.crate + "): " + (config.crates[definition.crate] instanceof Object ? JSON.stringify(config.crates[definition.crate]) : toJson(config.crates[definition.crate])));
-                openMenu(sender, definition.crate);
-        }
-    }
-    
-
-    if (right && handItem.getItem().getName() == config.crateKey && handNbt != null && handNbt["S:crate"]) {
-        sender.chatError("This doesn't go here!");
-        event.setCanceled(true);
-    }
-});
-
-function openMenu(sender: mc.ICommandSender, crate: string) {
-    if (sender && sender.getPlayer() != null) {
-        
-        let items = []
-        let chanceMap = []
-        let totalChance = 0;
-        for (let i in config.crates[crate].items) {            
-            totalChance += config.crates[crate].items[i].chance;
-            chanceMap.push(totalChance);
-        }
-        for (let i = 0; i < config.crates[crate].size; i++) {
-            let chance = Math.random() * totalChance;            
-            for (let j in chanceMap) {
-                if (chance <= chanceMap[j]) {
-                    var itemDef = config.crates[crate].items[j];            
-                    var item = new mc.item.ItemStack(crateItem, 1);
-                    setNbt(item, {"i:itemdefindex":j,"c:display":{"S:Lore":[getActionLore(itemDef.action)]}});
-        
-                    items.push(item);
-                    break;
-                }
-            }
-        }
-
-        if (items.length == 0) {
-            sender.chatConfirm("The chest seems to be empty!");
-            return;
-        }
-
-        let inventory = FEServer.createCustomInventory(crate, true, items);
-        let menu = FEServer.getMenuChest(crate, FirstLetterToUpper(crate) + " Chest", inventory, "onTestMenu");
-        
-        sender.getPlayer().displayGUIChest(menu.getInventory());
-    }
-}
 
 function FirstLetterToUpper(s: string): string {
     return s[0].toUpperCase() + s.substring(1);
@@ -362,6 +254,116 @@ function toJson(obj : any, FEJson = true, key = null) : string {
             return `"${obj.toString()}"`;
     }
 }
+
+Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
+
+FEServer.registerCommand({
+    name: "itemdata",
+    usage: "Prints FE complient data of current item",
+    opOnly: true,
+    permission: "fe.crates.admin",
+    processCommand: function(args: fe.CommandArgs) {
+        if (args.player == null) {
+            args.sender.chatError("Must be a player!");
+            return;
+        }
+        let FEJson =  true;
+        if (!args.isEmpty()) {
+            FEJson = args.parseBoolean();
+        }        
+        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
+    }
+});
+
+Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.player.PlayerInteractEvent) {      
+    if (event.getPlayer() == null) {
+        return;
+    }
+
+    var right = false;
+    var eventString = event.toString();
+    if (eventString.search("RightClickBlock") != -1) {
+        right = true;
+    } else if (eventString.search("LeftClickBlock") != -1) {
+        right = false;
+    } else {
+        return;
+    }
+    
+    var pos = event.getPos();
+    var dim = event.getWorld().getDimension();
+    var sender = event.getPlayer().asCommandSender();
+    var handItem = event.getPlayer().getInventory().getCurrentItem();    
+    let handNbt = getNbt(handItem);
+
+    let found = false;
+    for (var index in config.definitions) {
+        
+        let definition = config.definitions[index];
+        if (pos.getX() == definition.position.x
+            && pos.getY() == definition.position.y
+            && pos.getZ() == definition.position.z
+            && dim == definition.position.dim && right && event.getHand() == 0) {
+                event.setCanceled(true);
+                found = true;
+                if (handItem.getItem().getName() != config.crateKey) 
+                {
+                    sender.chatError("This isn't a crate key!")
+                    return;
+                }
+                
+                if (handNbt == null || handNbt["S:crate"] != definition.crate) {
+                    sender.chatError(`You need a ${FirstLetterToUpper(definition.crate)} Key to open this crate!`)
+                    return;
+                }
+                //Only send debug message to server.  (Also, will not broadcast to discord)
+                //Server.getServer().chatConfirm("Crate (" + definition.crate + "): " + (config.crates[definition.crate] instanceof Object ? JSON.stringify(config.crates[definition.crate]) : toJson(config.crates[definition.crate])));
+                openMenu(sender, definition.crate);
+        }
+    }    
+    
+    if (!found && right && handItem.getItem().getName() == config.crateKey && handNbt != null && handNbt["S:crate"]) {
+        sender.chatError("This doesn't go here!");
+        event.setCanceled(true);
+    }
+});
+
+function openMenu(sender: mc.ICommandSender, crate: string) {
+    if (sender && sender.getPlayer() != null) {
+        
+        let items = []
+        let chanceMap = []
+        let totalChance = 0;
+        for (let i in config.crates[crate].items) {            
+            totalChance += config.crates[crate].items[i].chance;
+            chanceMap.push(totalChance);
+        }
+        for (let i = 0; i < config.crates[crate].size; i++) {
+            let chance = Math.random() * totalChance;            
+            for (let j in chanceMap) {
+                if (chance <= chanceMap[j]) {
+                    var itemDef = config.crates[crate].items[j];            
+                    var item = new mc.item.ItemStack(crateItem, 1);
+                    setNbt(item, {"i:itemdefindex":j,"c:display":{"S:Lore":[getActionLore(itemDef.action)]}});
+        
+                    items.push(item);
+                    break;
+                }
+            }
+        }
+
+        if (items.length == 0) {
+            sender.chatConfirm("The chest seems to be empty!");
+            return;
+        }
+
+        let inventory = FEServer.createCustomInventory(crate, true, items);
+        let menu = FEServer.getMenuChest(crate, FirstLetterToUpper(crate) + " Chest", inventory, "onTestMenu");
+        
+        sender.getPlayer().displayGUIChest(menu.getInventory());
+    }
+}
+
 var hiddenChatSender = Server.getServer().doAs(null, true);
 function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: int, clickType: String, inventory: mc.item.Inventory, itemstack: mc.item.ItemStack) : mc.item.ItemStack {
     var sender = player.asCommandSender();
