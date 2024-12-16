@@ -192,6 +192,7 @@ function getActionLore(action) {
             return null;
     }
 }
+Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
 function FirstLetterToUpper(s) {
     return s[0].toUpperCase() + s.substring(1);
 }
@@ -239,7 +240,6 @@ function toJson(obj, FEJson, key) {
             return "\"".concat(obj.toString(), "\"");
     }
 }
-Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Editing of Crates");
 FEServer.registerCommand({
     name: "itemdata",
     usage: "Prints FE complient data of current item",
@@ -255,6 +255,36 @@ FEServer.registerCommand({
             FEJson = args.parseBoolean();
         }
         args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
+    }
+});
+FEServer.registerCommand({
+    name: "fegive",
+    usage: "Spawns an item into a players inventory using FE nbt format.",
+    opOnly: true,
+    permission: "fe.crates.admin",
+    tabComplete: function (args) {
+        args.parsePlayer(true, true);
+        args.parseItem();
+        args.parseInt();
+        args.parseInt();
+    },
+    processCommand: function (args) {
+        if (args.isEmpty) {
+            args.confirm("/fegive [player] [item] [amount] [meta]? [nbtjson]?");
+        }
+        var ident = args.parsePlayer(true, true);
+        var item = args.parseItem();
+        var amount = args.parseInt();
+        var meta = 0;
+        if (!args.isEmpty()) {
+            meta = args.parseInt();
+        }
+        var itemstack = new mc.item.ItemStack(item, amount, meta);
+        if (!args.isEmpty()) {
+            var jsonStr = args.getAllArgs();
+            setNbt(itemstack, JSON.parse(jsonStr));
+        }
+        ident.getPlayer().getInventory().addItemStackToInventory(itemstack);
     }
 });
 Server.registerEvent("PlayerInteractEvent", function (event) {
@@ -398,7 +428,14 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                         }
                     }
                     else if (+itemDef.action == Actions.crateKey) {
-                        Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), config.crateKey, 1, 0, "{display:{Name:\"".concat(FirstLetterToUpper(itemDef.crate), " Key\"},crate:\"").concat(itemDef.crate, "\"}"));
+                        var stack = new mc.item.ItemStack(mc.item.Item.get(config.crateKey), 1);
+                        setNbt(stack, {
+                            'c:display': {
+                                'S:Name': FirstLetterToUpper(itemDef.crate)
+                            },
+                            'S:crate': itemDef.crate
+                        });
+                        player.getInventory().addItemStackToInventory(stack);
                         if (config.broadcastItemGifts) {
                             Server.chatConfirm("".concat(headerMsg, " ").concat(FirstLetterToUpper(itemDef.crate), " Key to ").concat(sender.getName()));
                         }
