@@ -1,5 +1,6 @@
 //A very simple barebones crate script as an example of some of the more complex things you can do on 1.12
 //This relys on inprogress scripting inprovements and will currently only work on builds from the `1.12.2/scripting-improvements` branch.
+//Instalation instructions: copy crates.js to crates/crates.js and copy commonlib.js to the base scripting folder.  (Make sure you are on the latest scripting improvement build (Dec-16-24))
 
 enum Actions {
     giveItem, //Gives an amount of items
