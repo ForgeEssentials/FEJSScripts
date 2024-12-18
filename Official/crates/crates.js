@@ -1,3 +1,5 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 var Actions;
 (function (Actions) {
     Actions[Actions["giveItem"] = 0] = "giveItem";
@@ -5,11 +7,12 @@ var Actions;
     Actions[Actions["giveMoney"] = 2] = "giveMoney";
     Actions[Actions["crateKey"] = 3] = "crateKey";
 })(Actions || (Actions = {}));
+var commonlib_1 = require("../commonlib");
 var configVersion = 1;
 if (typeof config !== 'undefined') {
     if (config.version < configVersion) {
     }
-    var jsonConfig = toJson(config);
+    var jsonConfig = (0, commonlib_1.toJson)(config);
     config = JSON.parse(jsonConfig);
     Server.getServer().chat("Config File Loaded: ".concat(jsonConfig));
 }
@@ -196,97 +199,6 @@ Permissions.registerPermission("fe.crates.admin", PermissionLevel.OP, "Allows Ed
 function FirstLetterToUpper(s) {
     return s[0].toUpperCase() + s.substring(1);
 }
-function toJson(obj, FEJson, key) {
-    if (FEJson === void 0) { FEJson = true; }
-    if (key === void 0) { key = null; }
-    switch (typeof (obj)) {
-        case "undefined":
-            return null;
-        case "object":
-            if (obj == null) {
-                return null;
-            }
-            var isArray = false;
-            if (typeof (obj[0]) != "undefined") {
-                isArray = true;
-                var j_1 = 0;
-                for (var i in obj) {
-                    if (+i != j_1) {
-                        isArray = false;
-                    }
-                    j_1++;
-                }
-            }
-            var objStr = isArray ? "[" : "{";
-            var j = -1;
-            if (!FEJson && isArray && key[0] != NBT_STRING[0]) {
-                objStr += key[0];
-                objStr += ';';
-            }
-            for (var i in obj) {
-                j++;
-                objStr += "".concat(j == 0 ? "" : ",").concat(isArray ? "" : "\"".concat(FEJson ? i : i.substring(2), "\":")).concat(toJson(obj[i], FEJson, isArray ? key : i));
-            }
-            objStr += isArray ? "]" : "}";
-            return j != -1 ? objStr : null;
-        case "number":
-        case "boolean":
-        case "bigint":
-            if (!FEJson && key != null && key[0] != NBT_INT[0] && key[0] != NBT_INT_ARRAY[0]) {
-                return obj.toString() + key[0].toLowerCase();
-            }
-            return obj.toString();
-        default:
-            return "\"".concat(obj.toString(), "\"");
-    }
-}
-FEServer.registerCommand({
-    name: "itemdata",
-    usage: "Prints FE complient data of current item",
-    opOnly: true,
-    permission: "fe.crates.admin",
-    processCommand: function (args) {
-        if (args.player == null) {
-            args.sender.chatError("Must be a player!");
-            return;
-        }
-        var FEJson = true;
-        if (!args.isEmpty()) {
-            FEJson = args.parseBoolean();
-        }
-        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
-    }
-});
-FEServer.registerCommand({
-    name: "fegive",
-    usage: "Spawns an item into a players inventory using FE nbt format.",
-    opOnly: true,
-    permission: "fe.crates.admin",
-    tabComplete: function (args) {
-        args.parsePlayer(true, true);
-        args.parseItem();
-        args.parseInt();
-        args.parseInt();
-    },
-    processCommand: function (args) {
-        if (args.isEmpty) {
-            args.confirm("/fegive [player] [item] [amount] [meta]? [nbtjson]?");
-        }
-        var ident = args.parsePlayer(true, true);
-        var item = args.parseItem();
-        var amount = args.parseInt();
-        var meta = 0;
-        if (!args.isEmpty()) {
-            meta = args.parseInt();
-        }
-        var itemstack = new mc.item.ItemStack(item, amount, meta);
-        if (!args.isEmpty()) {
-            var jsonStr = args.getAllArgs();
-            setNbt(itemstack, JSON.parse(jsonStr));
-        }
-        ident.getPlayer().getInventory().addItemStackToInventory(itemstack);
-    }
-});
 Server.registerEvent("PlayerInteractEvent", function (event) {
     if (event.getPlayer() == null) {
         return;
@@ -332,6 +244,8 @@ Server.registerEvent("PlayerInteractEvent", function (event) {
         event.setCanceled(true);
     }
 });
+var inventoryDef = {};
+var selectedItems = {};
 function openMenu(sender, crate) {
     if (sender && sender.getPlayer() != null) {
         var items = [];
@@ -341,18 +255,22 @@ function openMenu(sender, crate) {
             totalChance += config.crates[crate].items[i].chance;
             chanceMap.push(totalChance);
         }
+        var playerInf = [];
         for (var i = 0; i < config.crates[crate].size; i++) {
             var chance = Math.random() * totalChance;
             for (var j in chanceMap) {
                 if (chance <= chanceMap[j]) {
                     var itemDef = config.crates[crate].items[j];
                     var item = new mc.item.ItemStack(crateItem, 1);
-                    setNbt(item, { "i:itemdefindex": j, "c:display": { "S:Lore": [getActionLore(itemDef.action)] } });
+                    setNbt(item, { "c:display": { "S:Lore": [getActionLore(itemDef.action)] } });
                     items.push(item);
+                    playerInf.push(j);
                     break;
                 }
             }
         }
+        inventoryDef[sender.getPlayer().getUuid().toString()] = playerInf;
+        selectedItems[sender.getPlayer().getUuid().toString()] = [];
         if (items.length == 0) {
             sender.chatConfirm("The chest seems to be empty!");
             return;
@@ -368,15 +286,12 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
     var crateKey = inventory.getName();
     var handItem = player.getInventory().getCurrentItem();
     if (clickType == "PICKUP" && crateKey != "container.inventory" && itemstack != mc.item.ItemStack.EMPTY) {
-        var handNbt = getNbt(handItem);
-        if (handNbt["I:selecteditems"] == null) {
-            handNbt["I:selecteditems"] = [];
-        }
         var _nbt = getNbt(itemstack);
+        var itemIndex = inventoryDef[player.getUuid().toString()][clickSlot];
         if (itemstack.getItem() == crateItem) {
-            handNbt["I:selecteditems"].push(_nbt["i:itemdefindex"]);
-            if (handNbt["I:selecteditems"].length <= config.crates[crateKey].pickNumber) {
-                var itemDef = config.crates[crateKey].items[_nbt["i:itemdefindex"].toString()];
+            selectedItems[player.getUuid().toString()].push(itemIndex);
+            if (selectedItems[player.getUuid().toString()].length <= config.crates[crateKey].pickNumber) {
+                var itemDef = config.crates[crateKey].items[itemIndex];
                 var meta = itemDef["meta"];
                 if (meta == null) {
                     meta = 0;
@@ -384,11 +299,10 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                 var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1, meta);
                 setNbt(newItemstack, itemDef.action == Actions.giveItem && itemDef.tag != null ? itemDef.tag : _nbt);
                 inventory.setStackInSlot(clickSlot, newItemstack);
-                setNbt(handItem, handNbt);
             }
-            if (handNbt["I:selecteditems"].length == config.crates[crateKey].pickNumber) {
-                for (var i in handNbt["I:selecteditems"]) {
-                    var itemDef = config.crates[crateKey].items[handNbt["I:selecteditems"][i].toString()];
+            if (selectedItems[player.getUuid().toString()].length == config.crates[crateKey].pickNumber) {
+                for (var i in selectedItems[player.getUuid().toString()]) {
+                    var itemDef = config.crates[crateKey].items[selectedItems[player.getUuid().toString()][i].toString()];
                     var headerMsg = "A".concat("aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Chest gave");
                     if (+itemDef.action == Actions.giveItem) {
                         var meta = itemDef["meta"];
@@ -397,7 +311,7 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                         }
                         var stack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.amount, meta);
                         if (itemDef.tag != null) {
-                            setNbt(stack, JSON.parse(toJson(itemDef.tag)));
+                            setNbt(stack, JSON.parse((0, commonlib_1.toJson)(itemDef.tag)));
                         }
                         player.getInventory().addItemStackToInventory(stack);
                         var displayName = stack.getDisplayName();
@@ -450,13 +364,8 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
         }
     }
     else if (clickType == "CLOSE") {
-        setTimeout(function () {
-            var handNbt = getNbt(handItem);
-            if (handNbt != null && handNbt["I:selecteditems"] != null) {
-                delete handNbt["I:selecteditems"];
-                setNbt(handItem, handNbt);
-            }
-        }, 1);
+        delete inventoryDef[player.getUuid().toString()];
+        delete selectedItems[player.getUuid().toString()];
     }
     else if (clickType == "QUICK_MOVE") {
         return itemstack;
@@ -466,6 +375,8 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
 function closeScreen(sender) {
     if (sender) {
         var player = sender.getPlayer();
+        delete inventoryDef[player.getUuid().toString()];
+        delete selectedItems[player.getUuid().toString()];
         player.closeScreen();
     }
 }

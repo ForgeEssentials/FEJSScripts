@@ -8,6 +8,8 @@ enum Actions {
     crateKey //Gives an crate key
 }
 
+//Imports the toJson function from the commonlib script for normalizing the config file
+import { toJson } from "../commonlib";
 let configVersion = 1;
 
 if (typeof config !== 'undefined') {    
@@ -213,105 +215,6 @@ function FirstLetterToUpper(s: string): string {
     return s[0].toUpperCase() + s.substring(1);
 }
 
-function toJson(obj : any, FEJson = true, key = null) : string {
-    
-    switch(typeof(obj)) {
-        case "undefined":
-            return null;
-        case "object":
-            if (obj == null) {
-                return null;
-            }
-            let isArray = false;
-            if (typeof(obj[0]) != "undefined") {
-                isArray = true;
-                let j = 0;
-                for (let i in obj) {
-                    if (+i != j) {
-                        isArray = false;
-                    }
-                    j++;
-                }
-            }
-            let objStr = isArray ? "[" :"{";
-            let j = -1;
-            if (!FEJson && isArray && key[0] != NBT_STRING[0]) {
-                objStr+=key[0]
-                objStr+=';'
-            }
-            for (let i in obj) {                
-                j++;
-                objStr += `${j == 0 ? "" : ","}${isArray ? "": `"${FEJson ? i : i.substring(2)}":`}${toJson(obj[i], FEJson, isArray ? key : i)}`;                
-            }
-            objStr += isArray ? "]" : "}";
-            return j != -1 ? objStr : null;       
-        case "number":
-        case "boolean":
-        case "bigint":
-            if (!FEJson && key != null && key[0] != NBT_INT[0] && key[0] != NBT_INT_ARRAY[0]) {
-                return obj.toString() + key[0].toLowerCase();
-            }
-            return obj.toString();
-        default:
-            return `"${obj.toString()}"`;
-    }
-}
-
-FEServer.registerCommand({
-    name: "itemdata",
-    usage: "Prints FE complient data of current item",
-    opOnly: true,
-    permission: "fe.crates.admin",
-    processCommand: function(args: fe.CommandArgs) {
-        if (args.player == null) {
-            args.sender.chatError("Must be a player!");
-            return;
-        }
-        let FEJson =  true;
-        if (!args.isEmpty()) {
-            FEJson = args.parseBoolean();
-        }        
-        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
-    }
-});
-
-FEServer.registerCommand({
-    name: "fegive",
-    usage: "Spawns an item into a players inventory using FE nbt format.",
-    opOnly: true,
-    permission: "fe.crates.admin",
-    tabComplete: function(args: fe.CommandArgs) {
-        args.parsePlayer(true, true);
-        args.parseItem();
-        args.parseInt();
-        args.parseInt();
-    },
-    processCommand: function(args: fe.CommandArgs) {
-        if (args.isEmpty) {
-            args.confirm("/fegive [player] [item] [amount] [meta]? [nbtjson]?")
-        }
-        let ident = args.parsePlayer(true, true);
-        
-        let item = args.parseItem();
-
-        let amount = args.parseInt();
-        let meta = 0;
-        if (!args.isEmpty()) {
-            meta = args.parseInt();
-        }
-
-        let itemstack = new mc.item.ItemStack(item, amount, meta);
-        
-        if (!args.isEmpty()) {
-            let jsonStr = args.getAllArgs();           
-
-            setNbt(itemstack, JSON.parse(jsonStr));
-        }
-        
-        ident.getPlayer().getInventory().addItemStackToInventory(itemstack);
-    }
-})
-
 Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.player.PlayerInteractEvent) {      
     if (event.getPlayer() == null) {
         return;
@@ -365,6 +268,9 @@ Server.registerEvent("PlayerInteractEvent", function(event: mc.event.entity.play
     }
 });
 
+let inventoryDef = {};
+let selectedItems = {};
+
 function openMenu(sender: mc.ICommandSender, crate: string) {
     if (sender && sender.getPlayer() != null) {
         
@@ -375,20 +281,24 @@ function openMenu(sender: mc.ICommandSender, crate: string) {
             totalChance += config.crates[crate].items[i].chance;
             chanceMap.push(totalChance);
         }
+        let playerInf = [];
         for (let i = 0; i < config.crates[crate].size; i++) {
             let chance = Math.random() * totalChance;            
             for (let j in chanceMap) {
                 if (chance <= chanceMap[j]) {
                     var itemDef = config.crates[crate].items[j];            
                     var item = new mc.item.ItemStack(crateItem, 1);
-                    setNbt(item, {"i:itemdefindex":j,"c:display":{"S:Lore":[getActionLore(itemDef.action)]}});
+                    setNbt(item, {"c:display":{"S:Lore":[getActionLore(itemDef.action)]}});
         
                     items.push(item);
+                    playerInf.push(j);
                     break;
                 }
             }
         }
 
+        inventoryDef[sender.getPlayer().getUuid().toString()] = playerInf;
+        selectedItems[sender.getPlayer().getUuid().toString()] = [];
         if (items.length == 0) {
             sender.chatConfirm("The chest seems to be empty!");
             return;
@@ -404,21 +314,17 @@ function openMenu(sender: mc.ICommandSender, crate: string) {
 var hiddenChatSender = Server.getServer().doAs(null, true);
 function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: int, clickType: String, inventory: mc.item.Inventory, itemstack: mc.item.ItemStack) : mc.item.ItemStack {
     var sender = player.asCommandSender();
-    //Server.chat("a=" + clickSlot + ", b=" + clickFlag + ", c=" + clickType + ", d=" + inventory.getSize());        
     var crateKey = inventory.getName();    
     var handItem = player.getInventory().getCurrentItem();
     
-    if (clickType == "PICKUP" && crateKey!= "container.inventory" && itemstack != mc.item.ItemStack.EMPTY) {
-        var handNbt = getNbt(handItem);                       
-        if (handNbt["I:selecteditems"] == null) {
-            handNbt["I:selecteditems"] = [];
-        }        
+    if (clickType == "PICKUP" && crateKey!= "container.inventory" && itemstack != mc.item.ItemStack.EMPTY) {        
         var _nbt = getNbt(itemstack);
+        var itemIndex = inventoryDef[player.getUuid().toString()][clickSlot];
         if (itemstack.getItem() == crateItem) {
-            handNbt["I:selecteditems"].push(_nbt["i:itemdefindex"]);
+            selectedItems[player.getUuid().toString()].push(itemIndex);
             //Reveal Item
-            if (handNbt["I:selecteditems"].length <= config.crates[crateKey].pickNumber) {
-                var itemDef = config.crates[crateKey].items[_nbt["i:itemdefindex"].toString()];         
+            if (selectedItems[player.getUuid().toString()].length <= config.crates[crateKey].pickNumber) {
+                var itemDef = config.crates[crateKey].items[itemIndex];         
                 var meta : int = itemDef["meta"];
                 if (meta == null) {
                     meta = 0;
@@ -426,12 +332,10 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                 var newItemstack = new mc.item.ItemStack(mc.item.Item.get(itemDef.name), itemDef.action == Actions.giveItem ? itemDef.amount : 1, meta);                
                 setNbt(newItemstack, itemDef.action == Actions.giveItem && itemDef.tag != null ? itemDef.tag : _nbt);
                 inventory.setStackInSlot(clickSlot, newItemstack);
-                //Server.chatConfirm(JSON.stringify(handNbt));                    
-                setNbt(handItem, handNbt);
             }
-            if (handNbt["I:selecteditems"].length == config.crates[crateKey].pickNumber) {
-                for (var i in handNbt["I:selecteditems"]) {
-                    var itemDef = config.crates[crateKey].items[handNbt["I:selecteditems"][i].toString()];
+            if (selectedItems[player.getUuid().toString()].length == config.crates[crateKey].pickNumber) {
+                for (var i in selectedItems[player.getUuid().toString()]) {
+                    var itemDef = config.crates[crateKey].items[selectedItems[player.getUuid().toString()][i].toString()];
                     
                     var headerMsg = `A${"aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Chest gave`;
 
@@ -478,7 +382,6 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                             'S:crate': itemDef.crate
                         });
                         player.getInventory().addItemStackToInventory(stack);
-                        //Server.tryRunCommand(hiddenChatSender, "give", sender.getName(), config.crateKey, 1, 0, `{display:{Name:"${FirstLetterToUpper(itemDef.crate)} Key"},crate:"${itemDef.crate}"}`);
                         if (config.broadcastItemGifts) {
                             Server.chatConfirm(`${headerMsg} ${FirstLetterToUpper(itemDef.crate)} Key to ${sender.getName()}`)
                         } else {
@@ -493,14 +396,8 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
             }
         }
     } else if (clickType == "CLOSE") {
-        //Remove nbt data on a seperate thread to prevent a desync
-        setTimeout(function() {
-            var handNbt = getNbt(handItem);
-            if (handNbt != null && handNbt["I:selecteditems"] != null) {
-                delete handNbt["I:selecteditems"];
-                setNbt(handItem, handNbt);
-            }
-        }, 1);
+        delete inventoryDef[player.getUuid().toString()];
+        delete selectedItems[player.getUuid().toString()];
     } else if (clickType == "QUICK_MOVE") {                    
         //Return itemstack to block quick_move operation
         return itemstack;
@@ -511,6 +408,8 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
 function closeScreen(sender: mc.ICommandSender) {
     if (sender) {
         let player = sender.getPlayer();
+        delete inventoryDef[player.getUuid().toString()];
+        delete selectedItems[player.getUuid().toString()];
         player.closeScreen();
     }
 }
