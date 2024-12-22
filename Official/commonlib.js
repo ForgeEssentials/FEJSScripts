@@ -27,7 +27,7 @@ function toJson(obj, FEJson, key) {
             }
             var objStr = isArray ? "[" : "{";
             var j = -1;
-            if (!FEJson && isArray && key[0] != NBT_STRING[0]) {
+            if (FEJson != null && !FEJson && isArray && key[0] != NBT_STRING[0]) {
                 objStr += key[0];
                 objStr += ';';
             }
@@ -40,7 +40,7 @@ function toJson(obj, FEJson, key) {
         case "number":
         case "boolean":
         case "bigint":
-            if (!FEJson && key != null && key[0] != NBT_INT[0] && key[0] != NBT_INT_ARRAY[0]) {
+            if (FEJson != null && !FEJson && key != null && key[0] != NBT_INT[0] && key[0] != NBT_INT_ARRAY[0]) {
                 return obj.toString() + key[0].toLowerCase();
             }
             return obj.toString();
@@ -62,7 +62,54 @@ FEServer.registerCommand({
         if (!args.isEmpty()) {
             FEJson = args.parseBoolean();
         }
-        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
+        var item = args.player.getInventory().getCurrentItem();
+        if (item != mc.item.ItemStack.EMPTY) {
+            args.sender.chatConfirm("Item: ".concat(item.getItem().getName(), ", Damage/Meta: ").concat(item.getDamage(), ", Amount: ").concat(item.getStackSize()));
+            var nbt = getNbt(item);
+            var text = "";
+            if (nbt != null) {
+                text = toJson(nbt, FEJson);
+            }
+            else {
+                text = "Item does not have nbt!";
+            }
+            args.sender.tellRaw("{\"text\": \"".concat(text.replace(/"/g, '\\"'), "\", \"hoverEvent\":{\"action\":\"show_item\", \"value\":\"{id:\\\"").concat(item.getItem().getName(), "\\\", Count:").concat(item.getStackSize(), "b").concat(nbt != null ? ", tag:".concat(toJson(nbt, null).replace(/"/g, '\\"')) : "", "}\"}}"));
+        }
+        else {
+            args.sender.chatError("Hand Empty!");
+        }
+    }
+});
+FEServer.registerCommand({
+    name: "showcase",
+    usage: "Shares current item with server!",
+    opOnly: true,
+    permission: "fe.commands.showcase",
+    processCommand: function (args) {
+        if (args.player == null) {
+            args.sender.chatError("Must be a player!");
+            return;
+        }
+        var FEJson = true;
+        if (!args.isEmpty()) {
+            FEJson = args.parseBoolean();
+        }
+        var item = args.player.getInventory().getCurrentItem();
+        if (item != mc.item.ItemStack.EMPTY) {
+            var nbt = getNbt(item);
+            var color = "";
+            item.isDamageable;
+            if (item.isItemEnchanted()) {
+                color = "§b";
+            }
+            if (nbt != null && 'c:StoredEnchantments' in nbt) {
+                color = "§e";
+            }
+            Server.tellRaw("{\"text\": \"\u00A7f[".concat(item.hasDisplayName() ? "" : color).concat(item.getDisplayName(), "\u00A7f]\", \"hoverEvent\":{\"action\":\"show_item\", \"value\":\"{id:\\\"").concat(item.getItem().getName(), "\\\", Count:").concat(item.getStackSize(), "b").concat(nbt != null ? ", tag:".concat(toJson(nbt, null).replace(/"/g, '\\"')) : "", "}\"}}"));
+        }
+        else {
+            args.sender.chatError("Hand Empty!");
+        }
     }
 });
 FEServer.registerCommand({

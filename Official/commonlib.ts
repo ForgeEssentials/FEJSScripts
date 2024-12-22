@@ -8,6 +8,7 @@ export function fromMcJson(json: string): any {
 
 /**
  * Converts an object provided in raw json or fejson format and outputs a string representation, either in normal json or mcjson.
+ * If fejson is null, strips the type specifier from json tag and returns clean json
  * Also can be used to take a raw nashorn object and convert it to a canoncial object that can be used by JSON.stringify
  * ex: JSON.parse(toJson(object))
  * @param obj input object
@@ -37,7 +38,7 @@ export function toJson(obj : any, FEJson = true, key = null) : string {
             }
             let objStr = isArray ? "[" :"{";
             let j = -1;
-            if (!FEJson && isArray && key[0] != NBT_STRING[0]) {
+            if (FEJson != null && !FEJson && isArray && key[0] != NBT_STRING[0]) {
                 objStr+=key[0]
                 objStr+=';'
             }
@@ -50,7 +51,7 @@ export function toJson(obj : any, FEJson = true, key = null) : string {
         case "number":
         case "boolean":
         case "bigint":
-            if (!FEJson && key != null && key[0] != NBT_INT[0] && key[0] != NBT_INT_ARRAY[0]) {
+            if (FEJson != null && !FEJson && key != null && key[0] != NBT_INT[0] && key[0] != NBT_INT_ARRAY[0]) {
                 return obj.toString() + key[0].toLowerCase();
             }
             return obj.toString();
@@ -73,7 +74,58 @@ FEServer.registerCommand({
         if (!args.isEmpty()) {
             FEJson = args.parseBoolean();
         }        
-        args.sender.chatConfirm(toJson(getNbt(args.player.getInventory().getCurrentItem()), FEJson));
+        var item = args.player.getInventory().getCurrentItem();
+        if (item != mc.item.ItemStack.EMPTY) {
+            args.sender.chatConfirm(`Item: ${item.getItem().getName()}, Damage/Meta: ${item.getDamage()}, Amount: ${item.getStackSize()}`);
+            var nbt = getNbt(item);
+            let text = "";
+            if (nbt != null) {
+                text = toJson(nbt, FEJson);
+            } else {
+                text = "Item does not have nbt!";
+            }
+            
+            args.sender.tellRaw(`{"text": "${text.replace(/"/g,'\\"')}", "hoverEvent":{"action":"show_item", "value":"{id:\\"${item.getItem().getName()}\\", Count:${item.getStackSize()}b${nbt != null ? `, tag:${toJson(nbt, null).replace(/"/g,'\\"')}` : ""}}"}}`)
+            
+        } else {
+            args.sender.chatError("Hand Empty!");
+        }
+    }
+});
+
+FEServer.registerCommand({
+    name: "showcase",
+    usage: "Shares current item with server!",
+    opOnly: true,
+    permission: "fe.commands.showcase",
+    processCommand: function(args: fe.CommandArgs) {
+        if (args.player == null) {
+            args.sender.chatError("Must be a player!");
+            return;
+        }
+        let FEJson =  true;
+        if (!args.isEmpty()) {
+            FEJson = args.parseBoolean();
+        }        
+        var item = args.player.getInventory().getCurrentItem();
+        if (item != mc.item.ItemStack.EMPTY) {
+            var nbt = getNbt(item);            
+            let color = "";
+            item.isDamageable
+            if (item.isItemEnchanted()) {
+                color = "§b";
+            }
+
+            if (nbt != null && 'c:StoredEnchantments' in nbt) {
+                color = "§e"
+            }
+
+            Server.tellRaw(`{"text": "§f[${item.hasDisplayName() ? "" : color}${item.getDisplayName()}§f]", "hoverEvent":{"action":"show_item", "value":"{id:\\"${item.getItem().getName()}\\", Count:${item.getStackSize()}b${nbt != null ? `, tag:${toJson(nbt, null).replace(/"/g,'\\"')}` : ""}}"}}`)
+        
+        
+        } else {
+            args.sender.chatError("Hand Empty!");
+        }
     }
 });
 
