@@ -167,6 +167,7 @@ else {
                 crate: "diamond"
             }
         ],
+        hideCrateType: false,
         crateKey: "minecraft:tripwire_hook",
         crateItem: "minecraft:chest",
         broadcastItemGifts: false,
@@ -182,6 +183,9 @@ function main() {
 }
 main();
 function getActionLore(action) {
+    if (config.hideCrateType) {
+        return "You hear something rattling inside...";
+    }
     switch (+action) {
         case Actions.crateKey:
             return "Gives a Crate Key";
@@ -303,7 +307,7 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
             if (selectedItems[player.getUuid().toString()].length == config.crates[crateKey].pickNumber) {
                 for (var i in selectedItems[player.getUuid().toString()]) {
                     var itemDef = config.crates[crateKey].items[selectedItems[player.getUuid().toString()][i].toString()];
-                    var headerMsg = "A".concat("aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Chest gave");
+                    var headerMsg = "A".concat("aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : "", " ").concat(FirstLetterToUpper(crateKey), " Crate gave");
                     if (+itemDef.action == Actions.giveItem) {
                         var meta = itemDef["meta"];
                         if (meta == null) {
@@ -313,8 +317,8 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                         if (itemDef.tag != null) {
                             setNbt(stack, JSON.parse((0, commonlib_1.toJson)(itemDef.tag)));
                         }
-                        player.getInventory().addItemStackToInventory(stack);
                         var displayName = stack.getDisplayName();
+                        player.getInventory().addItemStackToInventory(stack);
                         if (config.broadcastItemGifts) {
                             Server.chatConfirm("".concat(headerMsg, " ").concat(displayName, " to ").concat(sender.getName()));
                         }
@@ -329,7 +333,7 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                             Server.chatConfirm("".concat(headerMsg, " a ").concat(itemDef.kit, " Kit to ").concat(sender.getName()));
                         }
                         else {
-                            sender.chatConfirm("You recived the ".concat(itemDef.kit, " kit!"));
+                            sender.chatConfirm("You received the ".concat(itemDef.kit, " kit!"));
                         }
                     }
                     else if (+itemDef.action == Actions.giveMoney) {
@@ -359,7 +363,7 @@ function onTestMenu(player, clickSlot, clickFlag, clickType, inventory, itemstac
                     }
                 }
                 handItem.setStackSize(handItem.getStackSize() - 1);
-                FEServer.AddCoRoutine(1, 60, "closeScreen", sender);
+                FEServer.AddCoRoutine(1, 45, "closeScreen", sender);
             }
         }
     }

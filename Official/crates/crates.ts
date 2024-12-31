@@ -176,6 +176,7 @@ if (typeof config !== 'undefined') {
                 crate: "diamond"
             }
         ],
+        hideCrateType: false,
         crateKey: "minecraft:tripwire_hook",
         crateItem: "minecraft:chest",
         broadcastItemGifts: false,
@@ -195,15 +196,18 @@ function main() {
 main();
 
 function getActionLore(action: Actions) : string {
+    if (config.hideCrateType) {
+        return "You hear something rattling inside...";
+    }
     switch(+action) {
         case Actions.crateKey:
-            return "Gives a Crate Key"
+            return "Gives a Crate Key";
         case Actions.giveItem:
-            return "Gives an Item"
+            return "Gives an Item";
         case Actions.giveKit:
-            return "Gives a Kit"
+            return "Gives a Kit";
         case Actions.giveMoney:
-            return "Gives an amount of credits"
+            return "Gives an amount of credits";
         default:
             return null;
     }
@@ -338,7 +342,7 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                 for (var i in selectedItems[player.getUuid().toString()]) {
                     var itemDef = config.crates[crateKey].items[selectedItems[player.getUuid().toString()][i].toString()];
                     
-                    var headerMsg = `A${"aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Chest gave`;
+                    var headerMsg = `A${"aeiouAEIOU".search(crateKey[0]) != -1 ? "n" : ""} ${FirstLetterToUpper(crateKey)} Crate gave`;
 
                     if (+itemDef.action == Actions.giveItem) {
                         var meta : int = itemDef["meta"];
@@ -350,8 +354,8 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                         if (itemDef.tag != null) {
                             setNbt(stack, JSON.parse(toJson(itemDef.tag)));
                         }
-                        player.getInventory().addItemStackToInventory(stack);
                         let displayName = stack.getDisplayName();
+                        player.getInventory().addItemStackToInventory(stack);                        
                         if (config.broadcastItemGifts) {
                             Server.chatConfirm(`${headerMsg} ${displayName} to ${sender.getName()}`);
                         } else {
@@ -364,7 +368,7 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                         if (config.broadcastItemGifts) {
                             Server.chatConfirm(`${headerMsg} a ${itemDef.kit} Kit to ${sender.getName()}`);
                         } else {
-                            sender.chatConfirm(`You recived the ${itemDef.kit} kit!`);
+                            sender.chatConfirm(`You received the ${itemDef.kit} kit!`);
                         }
                                         
                     } else if (+itemDef.action == Actions.giveMoney) {
@@ -393,7 +397,7 @@ function onTestMenu(player: mc.entity.EntityPlayer, clickSlot: int, clickFlag: i
                 //Remove key from player
                 handItem.setStackSize(handItem.getStackSize()-1);
                 //Never Run closeScreen() from this callback method!
-                FEServer.AddCoRoutine(1, 60, "closeScreen", sender);
+                FEServer.AddCoRoutine(1, 45, "closeScreen", sender);
             }
         }
     } else if (clickType == "CLOSE") {
